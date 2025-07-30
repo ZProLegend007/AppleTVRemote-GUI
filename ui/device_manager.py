@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget, 
                             QListWidgetItem, QPushButton, QLabel, QGroupBox,
-                            QProgressBar, QMessageBox)
+                            QProgressBar, QMessageBox, QSpinBox)
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QFont
 import asyncio
@@ -186,6 +186,16 @@ class DeviceManagerWidget(QWidget):
         self.refresh_button.clicked.connect(self._refresh_devices)
         button_layout.addWidget(self.refresh_button)
         
+        # Timeout control
+        timeout_layout = QHBoxLayout()
+        timeout_layout.addWidget(QLabel("Timeout:"))
+        self.timeout_spin = QSpinBox()
+        self.timeout_spin.setRange(5, 60)
+        self.timeout_spin.setValue(10)
+        self.timeout_spin.setSuffix(" seconds")
+        timeout_layout.addWidget(self.timeout_spin)
+        button_layout.addLayout(timeout_layout)
+        
         discovery_layout.addLayout(button_layout)
         
         # Discovery progress
@@ -237,6 +247,8 @@ class DeviceManagerWidget(QWidget):
         """Set up signal connections."""
         self.device_controller.discovery_started.connect(self._on_discovery_started)
         self.device_controller.discovery_finished.connect(self._on_discovery_finished)
+        self.device_controller.discovery_progress.connect(self._on_discovery_progress)
+        self.device_controller.discovery_error.connect(self._on_discovery_error)
         self.device_controller.devices_discovered.connect(self._on_devices_discovered)
         self.device_controller.device_connected.connect(self._on_device_connected)
         self.device_controller.device_disconnected.connect(self._on_device_disconnected)
@@ -253,7 +265,7 @@ class DeviceManagerWidget(QWidget):
         """Start device discovery."""
         try:
             self._set_discovery_state(True)
-            timeout = self.config_manager.get('discovery_timeout', 10)
+            timeout = self.timeout_spin.value()
             await self.device_controller.discover_devices(timeout)
         except Exception as e:
             print(f"Device discovery failed: {e}")
@@ -376,6 +388,19 @@ class DeviceManagerWidget(QWidget):
         """Handle connection failure."""
         QMessageBox.warning(self, "Connection Failed", 
                           f"Failed to connect to device:\n{error}")
+    
+    @pyqtSlot(str)
+    def _on_discovery_progress(self, message: str):
+        """Handle discovery progress updates."""
+        self.discovery_status.setText(message)
+        self.discovery_status.setStyleSheet("color: #00aaff; font-size: 10px;")
+    
+    @pyqtSlot(str)
+    def _on_discovery_error(self, error: str):
+        """Handle discovery errors."""
+        self.discovery_status.setText(f"Error: {error}")
+        self.discovery_status.setStyleSheet("color: #ff0000; font-size: 10px;")
+        QMessageBox.warning(self, "Discovery Error", f"Discovery failed:\n{error}")
     
     def get_selected_device(self) -> dict:
         """Get the currently selected device info."""

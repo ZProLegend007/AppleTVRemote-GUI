@@ -20,6 +20,8 @@ class DeviceController(QObject):
     device_state_changed = pyqtSignal(str, dict)  # device_id, state
     discovery_started = pyqtSignal()
     discovery_finished = pyqtSignal()
+    discovery_progress = pyqtSignal(str)
+    discovery_error = pyqtSignal(str)
     
     def __init__(self, config_manager: ConfigManager):
         super().__init__()
@@ -38,9 +40,17 @@ class DeviceController(QObject):
         """Discover Apple TV and HomePod devices on the network."""
         try:
             self.discovery_started.emit()
+            self.discovery_progress.emit("Starting Apple TV discovery...")
             
             # Scan for devices
             atvs = await pyatv.scan(timeout=timeout, loop=asyncio.get_event_loop())
+            
+            if not atvs:
+                self.discovery_progress.emit("No Apple TV devices found")
+                self.devices_discovered.emit([])
+                return []
+            
+            self.discovery_progress.emit(f"Found {len(atvs)} Apple TV device(s)")
             
             devices = []
             for conf in atvs:
@@ -67,11 +77,17 @@ class DeviceController(QObject):
                 
                 # Store in known devices
                 self.config_manager.add_known_device(device_info['id'], device_info)
+                
+                self.discovery_progress.emit(f"Added: {conf.name} ({conf.address})")
             
+            self.discovery_progress.emit("Discovery complete")
             self.devices_discovered.emit(devices)
             return devices
             
         except Exception as e:
+            error_msg = f"Discovery failed: {str(e)}"
+            self.discovery_progress.emit(error_msg)
+            self.discovery_error.emit(error_msg)
             print(f"Device discovery failed: {e}")
             return []
         finally:

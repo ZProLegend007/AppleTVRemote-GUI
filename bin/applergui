@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import traceback
+import qasync
+import asyncio
+
+# Add current directory to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def main():
+    """Main application entry point with pyatv support"""
+    try:
+        from PyQt6.QtWidgets import QApplication
+        from ui.main_window import MainWindow
+        from backend.config_manager import ConfigManager
+        from backend.device_controller import DeviceController
+        from backend.pairing_manager import PairingManager
+        
+        # Suppress Qt verbose logging for clean output
+        os.environ['QT_LOGGING_RULES'] = (
+            'qt.text.font.*=false;'
+            'qt.widgets.*=false;'
+            'qt.core.*=false;'
+            'qt.qpa.*=false;'
+            'qt.accessibility.*=false'
+        )
+        
+        print("🍎 Launching ApplerGUI with Apple TV support...")
+        
+        app = QApplication(sys.argv)
+        
+        # Setup async event loop integration
+        loop = qasync.QEventLoop(app)
+        asyncio.set_event_loop(loop)
+        
+        print("✓ Async event loop initialized")
+        
+        # Setup backend components
+        config_manager = ConfigManager()
+        device_controller = DeviceController(config_manager)
+        pairing_manager = PairingManager(config_manager)
+        
+        print("✓ Backend components initialized")
+        
+        # Create main window
+        window = MainWindow(config_manager, device_controller, pairing_manager)
+        window.show()
+        
+        print("✅ ApplerGUI launched successfully with Apple TV support")
+        
+        # Run with async support
+        with loop:
+            loop.run_until_complete(app.exec())
+        
+    except ImportError as e:
+        print(f"❌ Missing dependency: {e}")
+        print("💡 Please install missing packages with: pip install -r requirements.txt")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Launch failed: {e}")
+        print("\n📊 Full traceback:")
+        traceback.print_exc()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
