@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
+from datetime import datetime
 
 try:
     import keyring
@@ -51,7 +52,8 @@ class ConfigManager:
             },
             "devices": {
                 "auto_connect": False,
-                "remember_devices": True
+                "remember_devices": True,
+                "known_devices": {}
             }
         }
     
@@ -203,3 +205,56 @@ class ConfigManager:
                 logging.info(f"Credential deleted from file for {service}")
         except (json.JSONDecodeError, IOError) as e:
             logging.error(f"Failed to delete credential from file: {e}")
+    
+    # Device Management Methods
+    def get_known_devices(self) -> Dict[str, Any]:
+        """Get list of known/saved Apple TV devices"""
+        return self.get('devices.known_devices', {})
+    
+    def save_known_device(self, device_id: str, device_info: Dict[str, Any]):
+        """Save a device to known devices list"""
+        known_devices = self.get_known_devices()
+        known_devices[device_id] = {
+            'name': device_info.get('name', 'Unknown Device'),
+            'address': device_info.get('address', ''),
+            'model': device_info.get('model', 'Unknown'),
+            'services': device_info.get('services', []),
+            'last_seen': datetime.now().isoformat(),
+            'saved_at': device_info.get('saved_at', datetime.now().isoformat())
+        }
+        self.set('devices.known_devices', known_devices)
+        logging.info(f"Saved device {device_id} to known devices")
+    
+    def remove_known_device(self, device_id: str):
+        """Remove a device from known devices list"""
+        known_devices = self.get_known_devices()
+        if device_id in known_devices:
+            del known_devices[device_id]
+            self.set('devices.known_devices', known_devices)
+            logging.info(f"Removed device {device_id} from known devices")
+    
+    def is_device_known(self, device_id: str) -> bool:
+        """Check if device is in known devices list"""
+        known_devices = self.get_known_devices()
+        return device_id in known_devices
+    
+    def get_device_credentials(self, device_id: str) -> Optional[Dict[str, str]]:
+        """Get stored credentials for a device"""
+        pin = self.get_credential('apple_tv', f"{device_id}_pin")
+        credentials = self.get_credential('apple_tv', f"{device_id}_creds")
+        
+        if pin or credentials:
+            return {
+                'pin': pin,
+                'credentials': credentials
+            }
+        return None
+    
+    def save_device_credentials(self, device_id: str, pin: str = None, credentials: str = None):
+        """Save device credentials"""
+        if pin:
+            self.store_credential('apple_tv', f"{device_id}_pin", pin)
+            logging.info(f"Saved PIN for device {device_id}")
+        if credentials:
+            self.store_credential('apple_tv', f"{device_id}_creds", credentials)
+            logging.info(f"Saved credentials for device {device_id}")

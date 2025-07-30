@@ -4,6 +4,15 @@ import sys
 import os
 import traceback
 
+# COMPLETELY SUPPRESS Qt logging - must be done BEFORE any Qt imports
+os.environ['QT_LOGGING_RULES'] = '*=false'
+os.environ['QT_DEBUG_PLUGINS'] = '0'
+os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
+
+# Additional Qt environment variables to suppress ALL output
+os.environ['QT_QUIET'] = '1'
+os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
+
 # Add current directory to Python path
 applergui_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, applergui_dir)
@@ -31,6 +40,12 @@ def check_dependencies():
         import aiohttp
     except ImportError:
         missing_deps.append("aiohttp>=3.8.0")
+    
+    # PIL is optional but recommended
+    try:
+        import PIL
+    except ImportError:
+        print("⚠️  Warning: PIL/Pillow not available, image processing will be disabled")
     
     # keyring is optional but recommended
     try:
@@ -68,19 +83,18 @@ def main():
         import qasync
         import asyncio
         from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import QLoggingCategory
+        
+        # SUPPRESS ALL Qt logging categories
+        QLoggingCategory.setFilterRules("*=false")
+        
         from ui.main_window import MainWindow
         from backend.config_manager import ConfigManager
         from backend.device_controller import DeviceController
         from backend.pairing_manager import PairingManager
         
         # Suppress Qt verbose logging for clean output
-        os.environ['QT_LOGGING_RULES'] = (
-            'qt.text.font.*=false;'
-            'qt.widgets.*=false;'
-            'qt.core.*=false;'
-            'qt.qpa.*=false;'
-            'qt.accessibility.*=false'
-        )
+        os.environ['QT_LOGGING_RULES'] = '*=false'
         
         if debug_mode:
             print("✓ All imports successful")
