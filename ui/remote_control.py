@@ -125,7 +125,8 @@ class RemoteControlWidget(QWidget):
         layout.setSpacing(20)
         
         # Title
-        title_label = QLabel("Apple TV Remote")\n        title_font = QFont()
+        title_label = QLabel("Apple TV Remote")
+        title_font = QFont()
         title_font.setBold(True)
         title_font.setPointSize(16)
         title_label.setFont(title_font)

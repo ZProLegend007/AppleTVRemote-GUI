@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Apple TV Remote
+Comment=Control Apple TV and HomePod devices from Linux
+GenericName=Apple TV Remote
+Exec=python3 /path/to/AppleTVRemote-GUI/main.py
+Icon=/path/to/AppleTVRemote-GUI/resources/icons/app_icon.png
+Terminal=false
+StartupNotify=true
+MimeType=
+Categories=AudioVideo;RemoteAccess;Network;
+Keywords=Apple;TV;HomePod;Remote;Control;Media;
+StartupWMClass=appletv-remote-gui
