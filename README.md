@@ -62,7 +62,7 @@ During installation, you'll be prompted for:
 
 - **Desktop integration** - Add to application menu
 - **System-wide vs user installation** - Install for all users or current user
-- **Command-line access** - Create 'atvremote' terminal command
+- **Command-line access** - Create 'applergui' terminal command
 - **Development tools** - Additional dependencies for contributors
 - **Auto-start configuration** - Launch on system boot
 - **Additional themes and codecs** - Enhanced UI and media support
@@ -102,7 +102,7 @@ During installation, you'll be prompted for:
 - **"Permission denied"**: Don't run as root - installer will ask for sudo when needed
 - **"Package not found"**: Update package manager first (`sudo apt update`)
 - **Python version issues**: Ensure Python 3.8+ is installed
-- **"Command not found: atvremote"**: Restart terminal or run `source ~/.bashrc`
+- **"Command not found: applergui"**: Restart terminal or run `source ~/.bashrc`
 
 #### Application Issues
 

@@ -22,7 +22,7 @@ from backend.config_manager import ConfigManager
 from backend.device_controller import DeviceController
 from backend.pairing_manager import PairingManager
 
-class AppleTVRemoteApp:
+class ApplerGUIApp:
     """Main application class."""
     
     def __init__(self):
@@ -127,7 +127,7 @@ def main():
     """Main entry point."""
     try:
         # Create and set up the application
-        app = AppleTVRemoteApp()
+        app = ApplerGUIApp()
         app.setup_application()
         app.setup_backend()
         app.setup_ui()

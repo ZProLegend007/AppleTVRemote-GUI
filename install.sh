@@ -58,7 +58,7 @@ show_section_header() {
     cat << EOF
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║                                                                            ║
-║   🍎 AppleTVRemote-GUI Professional Installer                              ║
+║   🍎 ApplerGUI Professional Installer                                      ║
 ║                                                                            ║
 ║   Modern Linux GUI for Apple TV & HomePod Control                         ║
 ║                                                                            ║
