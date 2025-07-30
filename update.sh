@@ -20,6 +20,7 @@ source "$(dirname "$0")/installer_functions.sh" 2>/dev/null || {
 }
 
 show_section() {
+    clear  # Clear terminal for clean section display
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE} $1${NC}"
