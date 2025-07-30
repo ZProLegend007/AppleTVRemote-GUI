@@ -759,53 +759,43 @@ install_system_packages() {
     fi
 }
 
-# Proper directory and repository management
-setup_repository() {
-    show_section "📥 SETTING UP APPLICATION"
+# Enhanced installation directory management
+setup_installation_directory() {
+    print_info "→ 📁 Setting up installation directory..."
     
-    # Create proper installation directory
-    local install_dir
-    if [ "$USER_INSTALL" = true ]; then
-        install_dir="$HOME/.local/share/appletv-remote-gui"
-    else
-        install_dir="/opt/appletv-remote-gui"
-    fi
-    
-    print_info "→ Creating installation directory..."
-    
-    # Handle existing installations
-    if [[ -d "$install_dir" ]]; then
-        print_warning "⚠ Existing installation found"
-        if ask_yn "Remove existing installation?" "y" "This will delete the current installation"; then
-            if [ "$USER_INSTALL" = true ]; then
-                rm -rf "$install_dir"
-            else
-                sudo rm -rf "$install_dir"
-            fi
-            print_success "✓ Previous installation removed"
-        else
-            print_error "✗ Cannot proceed with existing installation"
-            exit 1
-        fi
-    fi
+    # User-specific installation path
+    local install_dir="$HOME/.local/share/appletv-remote-gui"
     
     # Create directory structure
-    if [ "$USER_INSTALL" = true ]; then
-        mkdir -p "$install_dir"
-    else
-        sudo mkdir -p "$install_dir"
-    fi
+    mkdir -p "$install_dir"
+    cd "$install_dir" || {
+        print_error "✗ Cannot access installation directory"
+        exit 1
+    }
+    
+    # Set global variable for other functions
+    export INSTALL_DIR="$install_dir"
+    export VENV_DIR="$install_dir/venv"
+    
+    print_success "✓ Installation directory: $install_dir"
+}
+
+# Proper directory and repository management
+setup_repository() {
+    show_section "📥 DOWNLOADING APPLICATION"
+    
+    # Setup installation directory first
+    setup_installation_directory
     
     print_info "→ Cloning repository..."
     {
-        git clone --depth 1 https://github.com/ZProLegend007/AppleTVRemote-GUI.git "$install_dir" 2>&1
+        git clone --depth 1 https://github.com/ZProLegend007/AppleTVRemote-GUI.git "$INSTALL_DIR" 2>&1
     } &
     show_spinner $! "Downloading AppleTVRemote-GUI"
     
     wait $!
     if [[ $? -eq 0 ]]; then
         print_success "✓ Repository cloned successfully"
-        INSTALL_DIR="$install_dir"
     else
         print_error "✗ Failed to clone repository"
         exit 1
@@ -816,79 +806,127 @@ setup_repository() {
 setup_virtual_environment() {
     print_info "🐍 Creating Python virtual environment..."
     
-    if [ "$USER_INSTALL" = true ]; then
-        VENV_DIR="$INSTALL_DIR/venv"
-    else
-        VENV_DIR="$INSTALL_DIR/venv"
+    # CRITICAL FIX: Ensure INSTALL_DIR is set before proceeding
+    if [[ -z "$INSTALL_DIR" ]]; then
+        print_error "✗ Installation directory not set. Cannot create virtual environment."
+        exit 1
     fi
+    
+    # FIXED: Use proper user directory path within the installation directory
+    VENV_DIR="$INSTALL_DIR/venv"
+    
+    # Ensure we're in the correct directory
+    cd "$INSTALL_DIR" || {
+        print_error "✗ Installation directory not found: $INSTALL_DIR"
+        exit 1
+    }
     
     print_info "→ Creating virtual environment..."
     {
-        if [ "$USER_INSTALL" = true ]; then
-            python3 -m venv "$VENV_DIR" 2>&1
-        else
-            sudo python3 -m venv "$VENV_DIR" 2>&1
-            sudo chown -R $USER:$USER "$VENV_DIR" 2>&1
-        fi
+        python3 -m venv "$VENV_DIR" 2>&1
     } &
-    show_spinner $! "Creating Python virtual environment"
-    wait $!
+    local venv_pid=$!
     
-    if [[ $? -eq 0 ]]; then
-        print_success "✓ Virtual environment created at $VENV_DIR"
+    show_spinner $venv_pid "Creating Python virtual environment"
+    wait $venv_pid
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        print_success "✓ ✓ Virtual environment created successfully"
     else
-        print_error "✗ Failed to create virtual environment"
+        print_error "✗ ✗ Failed to create virtual environment"
         exit 1
     fi
-}
-
-# Install Python dependencies
-install_python_deps() {
-    print_info "📚 Installing Python dependencies..."
     
+    # Activate virtual environment
     print_info "→ Activating virtual environment..."
     source "$VENV_DIR/bin/activate"
     
+    if [[ "$VIRTUAL_ENV" == "$VENV_DIR" ]]; then
+        print_success "✓ ✓ Virtual environment activated"
+    else
+        print_error "✗ ✗ Failed to activate virtual environment"
+        exit 1
+    fi
+    
+    # Upgrade pip in virtual environment
     print_info "→ Upgrading pip..."
     {
         pip install --upgrade pip 2>&1
     } &
-    show_spinner $! "Upgrading pip to latest version"
-    wait $!
+    local pip_pid=$!
     
-    print_info "→ Installing required packages..."
-    {
-        pip install -r "$INSTALL_DIR/requirements.txt" 2>&1
-    } &
-    show_spinner $! "Installing Python requirements"
-    wait $!
+    show_spinner $pip_pid "Upgrading pip"
+    wait $pip_pid
     
     if [[ $? -eq 0 ]]; then
-        print_success "✓ Python requirements installed"
+        print_success "✓ ✓ Pip upgraded successfully"
     else
-        print_error "✗ Failed to install Python requirements"
-        exit 1
+        print_warning "⚠ ⚠ Pip upgrade failed - continuing anyway"
     fi
     
-    # Install PyQt6 via pip if system packages failed
-    if [[ "$INSTALL_PYQT6_VIA_PIP" == "true" ]]; then
-        print_info "→ Installing PyQt6 via pip..."
+    sleep 1
+}
+
+# Install Python dependencies
+install_python_deps() {
+    show_section "📦 INSTALLING PYTHON DEPENDENCIES"
+    
+    print_info "→ 📦 Installing Python packages..."
+    
+    # Ensure virtual environment is activated
+    if [[ -z "$VIRTUAL_ENV" ]]; then
+        source "$VENV_DIR/bin/activate"
+    fi
+    
+    # Install PyQt6 via pip if system packages weren't available
+    if [[ "${INSTALL_PYQT6_VIA_PIP:-false}" == "true" ]]; then
+        print_info "→ → Installing PyQt6 via pip..."
         {
             pip install PyQt6 PyQt6-Qt6 2>&1
         } &
         show_spinner $! "Installing PyQt6 via pip"
-        wait $!
         
         if [[ $? -eq 0 ]]; then
             print_success "✓ ✓ PyQt6 installed via pip"
         else
-            print_warning "⚠ ⚠ PyQt6 pip installation failed"
-            print_info "ℹ ℹ Application may have limited GUI functionality"
+            print_error "✗ ✗ Failed to install PyQt6 via pip"
+            exit 1
         fi
     fi
     
+    # Install application dependencies
+    if [[ -f "$INSTALL_DIR/requirements.txt" ]]; then
+        print_info "→ → Installing application dependencies..."
+        {
+            pip install -r "$INSTALL_DIR/requirements.txt" 2>&1
+        } &
+        show_spinner $! "Installing application dependencies"
+        
+        if [[ $? -eq 0 ]]; then
+            print_success "✓ ✓ Application dependencies installed"
+        else
+            print_error "✗ ✗ Failed to install application dependencies"
+            exit 1
+        fi
+    fi
+    
+    # Install in development mode
+    print_info "→ → Installing AppleTVRemote-GUI..."
+    {
+        pip install -e "$INSTALL_DIR" 2>&1
+    } &
+    show_spinner $! "Installing AppleTVRemote-GUI"
+    
+    if [[ $? -eq 0 ]]; then
+        print_success "✓ ✓ AppleTVRemote-GUI installed successfully"
+    else
+        print_error "✗ ✗ Failed to install AppleTVRemote-GUI"
+        exit 1
+    fi
+    
     if [ "$INSTALL_DEV_DEPS" = true ]; then
-        print_info "→ Installing development dependencies..."
+        print_info "→ → Installing development dependencies..."
         {
             pip install pytest black flake8 mypy 2>&1
         } &
@@ -896,9 +934,9 @@ install_python_deps() {
         wait $!
         
         if [[ $? -eq 0 ]]; then
-            print_success "✓ Development dependencies installed"
+            print_success "✓ ✓ Development dependencies installed"
         else
-            print_warning "⚠ Some development dependencies failed to install"
+            print_warning "⚠ ⚠ Some development dependencies failed to install"
         fi
     fi
     
@@ -1215,12 +1253,13 @@ main() {
     install_system_packages
     refresh_sudo  # Refresh sudo credentials after potentially long package installation
     
+    # CRITICAL FIX: Setup repository BEFORE Python environment to ensure INSTALL_DIR is set
+    show_section "📥 DOWNLOADING APPLICATION"
+    setup_repository
+    
     show_section "🐍 SETTING UP PYTHON ENVIRONMENT"
     setup_virtual_environment
     install_python_deps
-    
-    # Use the new repository setup function
-    setup_repository
     
     show_section "⚙️ CONFIGURING APPLICATION"
     setup_application
