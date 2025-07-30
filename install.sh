@@ -229,10 +229,7 @@ install_python_packages_silent() {
 
 # Always use pip for PyQt6 installation - skip apt entirely  
 install_python_gui_packages() {
-    print_info "→ 🐍 Installing GUI packages via pip..."
-    
-    # Skip apt installation for PyQt6 - always fails on most systems
-    print_info "ℹ Using pip for PyQt6 (apt package not available on most systems)"
+    print_info "→ Installing GUI packages..."
     
     # Ensure virtual environment is activated
     if [[ -z "$VIRTUAL_ENV" ]]; then
@@ -241,10 +238,10 @@ install_python_gui_packages() {
     
     # Install PyQt6 and dependencies via pip
     if install_python_packages_silent "PyQt6" "PyQt6-Qt6" "PyQt6-tools"; then
-        print_success "✓ PyQt6 installed successfully via pip"
+        print_success "✓ Installing GUI packages"
         return 0
     else
-        print_error "✗ Failed to install PyQt6 via pip"
+        print_error "✗ Failed to install GUI packages"
         print_info "💡 This may be due to missing system dependencies"
         if [[ -n "$ERROR_LOG" ]]; then
             print_info "💡 Check logs: $ERROR_LOG"
@@ -793,7 +790,7 @@ install_packages_completely_clean() {
     local apt_pid=$!
     
     # Show clean spinner
-    show_spinner_completely_clean $apt_pid "Installing ${packages[*]}"
+    show_spinner_isolated $apt_pid "Installing ${packages[*]}"
     local exit_code=$?
     
     # If failed, show brief error summary
@@ -827,7 +824,7 @@ install_pip_packages_clean() {
     local pip_pid=$!
     
     # Show clean spinner
-    show_spinner_completely_clean $pip_pid "Installing Python packages: ${packages[*]}"
+    show_spinner_isolated $pip_pid "Installing Python packages: ${packages[*]}"
     local exit_code=$?
     
     # Clean up
@@ -930,7 +927,7 @@ install_system_packages() {
                 {
                     safe_sudo dnf install -y "${packages_to_install[@]}" "${pyqt_packages[@]}" >/dev/null 2>&1
                 } &
-                show_spinner_completely_clean $! "Installing packages with DNF"
+                show_spinner_isolated $! "Installing packages with DNF"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
@@ -945,7 +942,7 @@ install_system_packages() {
                     {
                         safe_sudo dnf install -y gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free >/dev/null 2>&1
                     } &
-                    show_spinner_completely_clean $! "Installing audio codecs"
+                    show_spinner_isolated $! "Installing audio codecs"
                     wait $!
                 fi
             else
@@ -968,14 +965,14 @@ install_system_packages() {
                 {
                     safe_sudo pacman -Sy >/dev/null 2>&1
                 } &
-                show_spinner_completely_clean $! "Updating package database"
+                show_spinner_isolated $! "Updating package database"
                 wait $!
                 
                 print_info "→ Installing packages with Pacman..."
                 {
                     safe_sudo pacman -S --noconfirm "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
                 } &
-                show_spinner_completely_clean $! "Installing packages with Pacman"
+                show_spinner_isolated $! "Installing packages with Pacman"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
@@ -989,7 +986,7 @@ install_system_packages() {
                     {
                         safe_sudo pacman -S --noconfirm gst-plugins-good gst-plugins-bad gst-plugins-ugly 2>&1
                     } &
-                    show_spinner_completely_clean $! "Installing audio codecs"
+                    show_spinner_isolated $! "Installing audio codecs"
                     wait $!
                 fi
             else
@@ -1007,28 +1004,28 @@ install_system_packages() {
                         {
                             safe_sudo apt install -y python3 python3-pip python3-venv git curl 2>&1
                         } &
-                        show_spinner_completely_clean $! "Installing basic dependencies"
+                        show_spinner_isolated $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "dnf")
                         {
                             safe_sudo dnf install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner_completely_clean $! "Installing basic dependencies"
+                        show_spinner_isolated $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "yum")
                         {
                             safe_sudo yum install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner_completely_clean $! "Installing basic dependencies"
+                        show_spinner_isolated $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "zypper")
                         {
                             safe_sudo zypper install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner_completely_clean $! "Installing basic dependencies"
+                        show_spinner_isolated $! "Installing basic dependencies"
                         wait $!
                         ;;
                 esac
@@ -1372,7 +1369,7 @@ clone_repository_silent() {
     } &
     local git_pid=$!
     
-    show_spinner_completely_clean $git_pid "Downloading ApplerGUI"
+    show_spinner_isolated $git_pid "Downloading ApplerGUI"
     local exit_code=$?
     
     # Clean up temp log
@@ -1423,7 +1420,7 @@ setup_virtual_environment() {
     } &
     local venv_pid=$!
     
-    show_spinner_completely_clean $venv_pid "Creating Python virtual environment"
+    show_spinner_isolated $venv_pid "Creating Python virtual environment"
     wait $venv_pid
     local exit_code=$?
     
@@ -1452,7 +1449,7 @@ setup_virtual_environment() {
     } &
     local pip_pid=$!
     
-    show_spinner_completely_clean $pip_pid "Upgrading pip"
+    show_spinner_isolated $pip_pid "Upgrading pip"
     wait $pip_pid
     
     if [[ $? -eq 0 ]]; then
@@ -1476,11 +1473,10 @@ install_python_deps() {
     fi
     
     # Always install PyQt6 via pip (skip system packages)
-    print_info "→ → Installing PyQt6 via pip..."
     if install_python_gui_packages; then
-        print_success "✓ ✓ PyQt6 installed via pip"
+        print_success "✓ GUI packages installed"
     else
-        print_error "✗ ✗ Failed to install PyQt6 via pip"
+        print_error "✗ Failed to install GUI packages"
         exit 1
     fi
     
