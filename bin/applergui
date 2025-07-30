@@ -3,15 +3,70 @@
 import sys
 import os
 import traceback
-import qasync
-import asyncio
 
 # Add current directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+applergui_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, applergui_dir)
+
+def check_dependencies():
+    """Check for required dependencies"""
+    missing_deps = []
+    
+    try:
+        import PyQt6
+    except ImportError:
+        missing_deps.append("PyQt6>=6.4.0")
+    
+    try:
+        import qasync
+    except ImportError:
+        missing_deps.append("qasync>=0.24.1")
+    
+    try:
+        import pyatv
+    except ImportError:
+        missing_deps.append("pyatv>=0.14.0")
+    
+    try:
+        import aiohttp
+    except ImportError:
+        missing_deps.append("aiohttp>=3.8.0")
+    
+    # keyring is optional but recommended
+    try:
+        import keyring
+    except ImportError:
+        print("⚠️  Warning: keyring not available, using file-based credential storage")
+    
+    if missing_deps:
+        print("❌ Missing required dependencies:")
+        for dep in missing_deps:
+            print(f"   - {dep}")
+        print("\n💡 Install missing packages with:")
+        print(f"   pip3 install --user {' '.join(missing_deps)}")
+        print("\n🔧 Or run the full installation:")
+        print("   ./install.sh")
+        return False
+    
+    return True
 
 def main():
-    """Main application entry point with pyatv support"""
+    """Main application entry point with comprehensive error handling"""
+    
+    # Handle debug mode
+    debug_mode = "--debug" in sys.argv
+    
+    if debug_mode:
+        print("🐛 Launching ApplerGUI in debug mode...")
+        print("📊 Checking dependencies...")
+    
+    # Check dependencies first
+    if not check_dependencies():
+        sys.exit(1)
+    
     try:
+        import qasync
+        import asyncio
         from PyQt6.QtWidgets import QApplication
         from ui.main_window import MainWindow
         from backend.config_manager import ConfigManager
@@ -27,6 +82,9 @@ def main():
             'qt.accessibility.*=false'
         )
         
+        if debug_mode:
+            print("✓ All imports successful")
+        
         print("🍎 Launching ApplerGUI with Apple TV support...")
         
         app = QApplication(sys.argv)
@@ -35,14 +93,16 @@ def main():
         loop = qasync.QEventLoop(app)
         asyncio.set_event_loop(loop)
         
-        print("✓ Async event loop initialized")
+        if debug_mode:
+            print("✓ Async event loop initialized")
         
         # Setup backend components
         config_manager = ConfigManager()
         device_controller = DeviceController(config_manager)
         pairing_manager = PairingManager(config_manager)
         
-        print("✓ Backend components initialized")
+        if debug_mode:
+            print("✓ Backend components initialized")
         
         # Create main window
         window = MainWindow(config_manager, device_controller, pairing_manager)
@@ -55,13 +115,16 @@ def main():
             loop.run_until_complete(app.exec())
         
     except ImportError as e:
-        print(f"❌ Missing dependency: {e}")
+        print(f"❌ Import error: {e}")
         print("💡 Please install missing packages with: pip install -r requirements.txt")
+        if debug_mode:
+            traceback.print_exc()
         sys.exit(1)
     except Exception as e:
         print(f"❌ Launch failed: {e}")
-        print("\n📊 Full traceback:")
-        traceback.print_exc()
+        if debug_mode:
+            print("\n📊 Full traceback:")
+            traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
