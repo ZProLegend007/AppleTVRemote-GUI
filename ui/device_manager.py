@@ -273,11 +273,50 @@ class DeviceManagerWidget(QWidget):
             wizard.device_paired.connect(self._on_device_paired)
             wizard.discovery_finished.connect(self._on_discovery_finished)
             
-            wizard.show()
+            # Show wizard with exec() for modal behavior
+            wizard.exec()
             
         except Exception as e:
             logging.error(f"Failed to launch discovery wizard: {e}")
-            self._show_error("Discovery Error", f"Failed to launch device discovery: {str(e)}")
+            # Show error with more details
+            error_msg = f"Failed to launch device discovery wizard:\n\n{str(e)}\n\nPlease ensure pyatv is installed:\npip install pyatv"
+            if hasattr(self, '_show_error'):
+                self._show_error("Discovery Error", error_msg)
+            else:
+                # Fallback error display
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "Discovery Error", error_msg)
+
+    def _on_device_paired(self, device_info):
+        """Handle successful device pairing"""
+        try:
+            device_name = device_info.get('name', 'Unknown Device')
+            logging.info(f"Device paired successfully: {device_name}")
+            
+            # Add to known devices
+            device_id = f"{device_name}_{device_info.get('address', 'unknown')}"
+            self.config_manager.save_known_device(device_id, device_info)
+            
+            # Refresh the device list
+            self._load_known_devices()
+            
+            # Show success message
+            success_msg = f"Successfully paired with '{device_name}'!\n\nThe device is now available in your device list."
+            if hasattr(self, '_show_info'):
+                self._show_info("Device Paired", success_msg)
+            else:
+                # Fallback success display
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.information(self, "Device Paired", success_msg)
+                
+        except Exception as e:
+            logging.error(f"Error handling device pairing: {e}")
+
+    def _on_discovery_finished(self):
+        """Handle discovery wizard completion"""
+        logging.info("Device discovery wizard completed")
+        # Refresh device list in case new devices were added
+        self._load_known_devices()
     
     def _refresh_devices(self):
         """Refresh the device list."""
@@ -409,21 +448,34 @@ class DeviceManagerWidget(QWidget):
     
     def _on_device_paired(self, device_info):
         """Handle successful device pairing"""
-        logging.info(f"Device paired successfully: {device_info['name']}")
-        
-        # Add to known devices
-        device_id = f"{device_info['name']}_{device_info['address']}"
-        self.config_manager.save_known_device(device_id, device_info)
-        
-        # Refresh the device list
-        self._load_known_devices()
-        
-        # Show success message
-        self._show_info("Device Paired", f"Successfully paired with {device_info['name']}")
+        try:
+            device_name = device_info.get('name', 'Unknown Device')
+            logging.info(f"Device paired successfully: {device_name}")
+            
+            # Add to known devices
+            device_id = f"{device_name}_{device_info.get('address', 'unknown')}"
+            self.config_manager.save_known_device(device_id, device_info)
+            
+            # Refresh the device list
+            self._load_known_devices()
+            
+            # Show success message
+            success_msg = f"Successfully paired with '{device_name}'!\n\nThe device is now available in your device list."
+            if hasattr(self, '_show_info'):
+                self._show_info("Device Paired", success_msg)
+            else:
+                # Fallback success display
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.information(self, "Device Paired", success_msg)
+                
+        except Exception as e:
+            logging.error(f"Error handling device pairing: {e}")
 
     def _on_discovery_finished(self):
         """Handle discovery wizard completion"""
         logging.info("Device discovery wizard completed")
+        # Refresh device list in case new devices were added
+        self._load_known_devices()
     
     def _show_error(self, title: str, message: str):
         """Show error message dialog"""
