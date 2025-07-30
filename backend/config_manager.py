@@ -121,9 +121,10 @@ class ConfigManager:
     def _store_credential_file(self, service: str, username: str, password: str):
         """Store credential in file (fallback method)"""
         credentials = {}
-        if self.credentials_file.exists():
+        credentials_file = Path(self.credentials_file)
+        if credentials_file.exists():
             try:
-                with open(self.credentials_file, 'r') as f:
+                with open(credentials_file, 'r') as f:
                     credentials = json.load(f)
             except (json.JSONDecodeError, IOError):
                 pass
@@ -137,22 +138,23 @@ class ConfigManager:
         credentials[service][username] = encoded_password
         
         try:
-            with open(self.credentials_file, 'w') as f:
+            with open(credentials_file, 'w') as f:
                 json.dump(credentials, f, indent=2)
             
             # Restrict file permissions
-            os.chmod(self.credentials_file, 0o600)
+            os.chmod(credentials_file, 0o600)
             logging.info(f"Credential stored in file for {service}")
         except IOError as e:
             logging.error(f"Failed to store credential in file: {e}")
     
     def _get_credential_file(self, service: str, username: str) -> Optional[str]:
         """Retrieve credential from file (fallback method)"""
-        if not self.credentials_file.exists():
+        credentials_file = Path(self.credentials_file)
+        if not credentials_file.exists():
             return None
         
         try:
-            with open(self.credentials_file, 'r') as f:
+            with open(credentials_file, 'r') as f:
                 credentials = json.load(f)
             
             if service in credentials and username in credentials[service]:
@@ -180,11 +182,12 @@ class ConfigManager:
     
     def _delete_credential_file(self, service: str, username: str):
         """Delete credential from file"""
-        if not self.credentials_file.exists():
+        credentials_file = Path(self.credentials_file)
+        if not credentials_file.exists():
             return
         
         try:
-            with open(self.credentials_file, 'r') as f:
+            with open(credentials_file, 'r') as f:
                 credentials = json.load(f)
             
             if service in credentials and username in credentials[service]:
@@ -194,7 +197,7 @@ class ConfigManager:
                 if not credentials[service]:
                     del credentials[service]
                 
-                with open(self.credentials_file, 'w') as f:
+                with open(credentials_file, 'w') as f:
                     json.dump(credentials, f, indent=2)
                 
                 logging.info(f"Credential deleted from file for {service}")
