@@ -2,10 +2,11 @@
 
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                             QTabWidget, QStatusBar, QMenuBar, QMessageBox,
-                            QLabel, QPushButton, QSplitter)
-from PyQt6.QtCore import Qt, QTimer, pyqtSlot
+                            QLabel, QPushButton, QSplitter, QApplication)
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QThreadPool
 from PyQt6.QtGui import QAction, QKeySequence, QPixmap
 import asyncio
+import qasync
 
 from ui.device_manager import DeviceManagerWidget
 from ui.remote_control import RemoteControlWidget
@@ -28,11 +29,16 @@ class MainWindow(QMainWindow):
         self.device_controller = device_controller
         self.pairing_manager = pairing_manager
         
+        # Enable multithreading
+        self.thread_pool = QThreadPool()
+        self.thread_pool.setMaxThreadCount(4)  # Allow multiple background tasks
+        
         self.pairing_dialog_manager = PairingDialogManager(self.pairing_manager, self)
         
         self._setup_ui()
         self._setup_connections()
         self._apply_theme()
+        self._setup_smooth_transitions()
         
         # Update timer for UI refresh
         self.update_timer = QTimer()
@@ -86,6 +92,15 @@ class MainWindow(QMainWindow):
         
         # Create status bar
         self._create_status_bar()
+    
+    def _setup_smooth_transitions(self):
+        """Enable smooth toolbar transitions."""
+        self.setAnimated(True)
+        
+        # Process events regularly to prevent lag
+        self.ui_timer = QTimer()
+        self.ui_timer.timeout.connect(lambda: QApplication.processEvents())
+        self.ui_timer.start(16)  # ~60 FPS refresh rate
     
     def _create_menu_bar(self):
         """Create the application menu bar."""
@@ -282,8 +297,8 @@ class MainWindow(QMainWindow):
     def _on_pairing_completed(self, device_id: str, credentials: dict):
         """Handle successful pairing."""
         self.status_bar.showMessage("Pairing completed successfully", 3000)
-        # Try to connect to the newly paired device
-        asyncio.create_task(self.device_controller.connect_device(device_id))
+        # Try to connect to the newly paired device using QTimer to schedule it
+        QTimer.singleShot(0, lambda: asyncio.create_task(self.device_controller.connect_device(device_id)))
     
     @pyqtSlot(str)
     def _on_pairing_started(self, device_id: str):
@@ -296,10 +311,15 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, "Pairing Failed", 
                           f"Failed to pair with device: {error}")
     
-    def _discover_devices(self):
+    @qasync.asyncSlot()
+    async def _discover_devices(self):
         """Start device discovery."""
-        timeout = self.config_manager.get('discovery_timeout', 10)
-        asyncio.create_task(self.device_controller.discover_devices(timeout))
+        try:
+            timeout = self.config_manager.get('discovery_timeout', 10)
+            await self.device_controller.discover_devices(timeout)
+        except Exception as e:
+            print(f"Device discovery failed: {e}")
+            QMessageBox.warning(self, "Discovery Failed", f"Device discovery failed: {e}")
     
     def _show_preferences(self):
         """Show preferences dialog."""
@@ -341,9 +361,15 @@ class MainWindow(QMainWindow):
         geometry = self.saveGeometry()
         self.config_manager.set('window_geometry', geometry.data().hex())
         
-        # Disconnect all devices
+        # Schedule disconnection of all devices
         connected_devices = list(self.device_controller._connected_devices.keys())
-        for device_id in connected_devices:
-            asyncio.create_task(self.device_controller.disconnect_device(device_id))
+        if connected_devices:
+            # Create a coroutine to disconnect all devices
+            async def disconnect_all():
+                for device_id in connected_devices:
+                    await self.device_controller.disconnect_device(device_id)
+            
+            # Use QTimer to run the disconnection after the event loop continues
+            QTimer.singleShot(0, lambda: asyncio.create_task(disconnect_all()))
         
         event.accept()
