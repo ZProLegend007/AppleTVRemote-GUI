@@ -29,13 +29,12 @@ def fix_qt_connections():
         test_obj = TestSignalClass()
         
         def test_handler(message):
-            print(f"Test signal received: {message}")
+            pass
         
         # Test connection
         test_obj.test_signal.connect(test_handler)
         test_obj.test_signal.emit("test message")
         
-        print("✓ Qt signal connections working correctly")
         return True
         
     except Exception as e:
@@ -83,7 +82,6 @@ def check_pairing_manager_signals():
             signal = getattr(pm, signal_name)
             signal.connect(test_callback)
         
-        print("✓ All PairingManager signals connected successfully")
         return True
         
     except Exception as e:
@@ -109,8 +107,6 @@ def main():
         success = False
     
     if success:
-        print("\n✓ All Qt connections are working properly")
-        print("✓ No fixes needed")
         return 0
     else:
         print("\n✗ Some Qt connection issues detected")

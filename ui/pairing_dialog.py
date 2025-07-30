@@ -3,7 +3,7 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QLineEdit, QProgressBar, QTextEdit,
                             QDialogButtonBox, QGroupBox, QSpinBox, QFrame)
-from PyQt6.QtCore import Qt, pyqtSlot, QTimer
+from PyQt6.QtCore import Qt, pyqtSlot, QTimer, QObject
 from PyQt6.QtGui import QFont, QPixmap
 from typing import Optional
 
@@ -361,10 +361,11 @@ class PairingProgressDialog(QDialog):
         self.progress_bar.setVisible(False)
         QTimer.singleShot(2000, self.accept)  # Auto-close after 2 seconds
 
-class PairingDialogManager:
+class PairingDialogManager(QObject):
     """Manages pairing dialogs and workflows."""
     
     def __init__(self, pairing_manager: PairingManager, parent_window):
+        super().__init__(parent_window)
         self.pairing_manager = pairing_manager
         self.parent_window = parent_window
         
