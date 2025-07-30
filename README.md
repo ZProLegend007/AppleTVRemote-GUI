@@ -1,414 +1,145 @@
 # AppleTVRemote-GUI
 
-Modern Linux GUI for controlling Apple TV and HomePod devices
+🍎 **Modern Linux GUI for Apple TV & HomePod Control**
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![PyQt6](https://img.shields.io/badge/GUI-PyQt6-green.svg)
-
-## 🚀 Quick Install
+## 🚀 Installation
 
 ```bash
-# One-line install command
 curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh | bash
+```
 
-# Or download and inspect first (recommended)
+**That's it!** The installer handles everything automatically with a beautiful interactive setup.
+
+### 🔒 Security Conscious?
+
+```bash
+# Download and inspect the installer first
 curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh -o install.sh
+less install.sh  # Review the script
 chmod +x install.sh
 ./install.sh
 ```
 
-## 📋 Installation Options
+## ✨ Features
+
+- 🎮 Full Apple TV remote control
+- 🎵 Now playing display with artwork
+- 📱 Device discovery and pairing
+- 🎨 Modern dark/light themes
+- ⌨️ Keyboard shortcuts
+- 🔧 Easy configuration
+
+## 📖 Usage
+
+After installation, launch from:
+- **GUI**: Application menu → AppleTVRemote-GUI
+- **Terminal**: `atvremote` (if CLI shortcut enabled)
+
+## 🛠️ Troubleshooting
+
+Visit our [Wiki](wiki) for help with common issues.
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+
+---
+
+## Detailed Documentation
+
+### Installation Details
+
+The professional installer provides:
+- **Smart dependency detection** - Automatically installs required packages
+- **Sudo management** - Only requests elevated privileges when necessary
+- **Interactive configuration** - Choose installation options that suit your needs
+- **Error recovery** - Graceful handling of installation issues
+- **Multiple distributions** - Support for Ubuntu, Fedora, Arch, and more
+
+### Installation Options
 
 During installation, you'll be prompted for:
 
-- **Desktop integration** (system menu entry) - Add application to your desktop environment's application menu
-- **System-wide vs user installation** - Install for all users or current user only
-- **Command-line access** ('atvremote' command) - Create a convenient command-line launcher
-- **Development tools** - Additional dependencies for developers and contributors
-- **Auto-start configuration** - Automatically launch the application on system boot
-- **Additional themes and codecs** - Enhanced UI themes and audio format support
-- **Configuration directory** - Pre-create settings and configuration folders
+- **Desktop integration** - Add to application menu
+- **System-wide vs user installation** - Install for all users or current user
+- **Command-line access** - Create 'atvremote' terminal command
+- **Development tools** - Additional dependencies for contributors
+- **Auto-start configuration** - Launch on system boot
+- **Additional themes and codecs** - Enhanced UI and media support
 
-### Installation Modes
+### System Requirements
 
-- **User Installation** (default): Installs to `~/.local/share/appletv-remote-gui`
-- **System-wide Installation**: Installs to `/opt/appletv-remote-gui` for all users
-
-## Features
-
-### 🔍 Device Discovery & Management
-- **Auto-discovery** of Apple TV and HomePod devices on your network
-- **Device information** display (name, model, IP address, services)
-- **Manual device addition** support
-- **Connection status indicators** with real-time updates
-- **Device credentials management** with secure storage
-
-### 🔐 Comprehensive Pairing System
-- **Full pairing workflow** for different authentication methods
-- **PIN-based pairing** for older Apple TV models
-- **Device code pairing** for newer Apple TVs (4th gen and later)
-- **Secure credential storage** using system keyring
-- **Re-pairing capabilities** when credentials expire
-
-### 🎵 Now Playing Controls
-- **Media information display** (title, artist, album, artwork)
-- **Playback controls** (play/pause, next/previous, seek)
-- **Volume control** with visual feedback
-- **Progress bar** with seek functionality
-- **Real-time artwork** display with automatic updates
-- **Playback state** monitoring (repeat, shuffle status)
-
-### 📱 Apple TV Remote Interface
-- **Full directional pad** (up, down, left, right, select)
-- **System buttons** (Menu, Home, Play/Pause)
-- **Volume controls** (up/down with visual feedback)
-- **Siri button support** (where available)
-- **Keyboard shortcuts** for all remote functions
-- **Button press animations** and hover effects
-
-### 🎨 Modern UI Design
-- **Clean, modern interface** built with PyQt6
-- **Dark/Light theme support** with system integration
-- **Responsive layout** that adapts to different screen sizes
-- **Smooth animations** and transitions
-- **Icon-based controls** with helpful tooltips
-- **Professional styling** with contemporary design patterns
-
-## Screenshots
-
-### Main Interface
-*Screenshot showing the main application window with device manager and remote control tabs*
-
-### Device Discovery
-*Screenshot showing the device discovery interface with found Apple TV devices*
-
-### Now Playing
-*Screenshot showing the now playing interface with album artwork and media controls*
-
-## Installation
-
-### Prerequisites
-
-- **Python 3.8+** (tested with Python 3.8, 3.9, 3.10, 3.11, 3.12)
-- **Linux distribution** (Ubuntu 20.04+, Fedora 34+, or equivalent)
+- **Linux** (Ubuntu 20.04+, Fedora 34+, Arch, or equivalent)
+- **Python 3.8+** (automatically installed if needed)
 - **Network access** to Apple TV/HomePod devices
 
-### Automated Installation (Recommended)
+### Supported Devices
 
-The easiest way to install AppleTVRemote-GUI is using our automated installer:
+- **Apple TV HD** (4th generation)
+- **Apple TV 4K** (5th generation and later)
+- **HomePod** (original and mini)
+- **Legacy Apple TV** models (with limited functionality)
 
+### Architecture & Implementation
+
+- **Async/await** support using qasync for non-blocking operations
+- **Separation of concerns** between UI and backend logic
+- **Signal-slot** communication for loose coupling
+- **Secure credential storage** using system keyring
+- **Robust error handling** with user-friendly feedback
+
+### Supported Protocols
+
+- **MRP** (Media Remote Protocol) - Primary Apple TV protocol
+- **DMAP** (Digital Media Access Protocol) - Legacy iTunes protocol
+- **AirPlay** - Audio/video streaming protocol
+- **Companion** - Modern pairing and control protocol
+
+### Troubleshooting
+
+#### Installation Issues
+
+- **"Permission denied"**: Don't run as root - installer will ask for sudo when needed
+- **"Package not found"**: Update package manager first (`sudo apt update`)
+- **Python version issues**: Ensure Python 3.8+ is installed
+- **"Command not found: atvremote"**: Restart terminal or run `source ~/.bashrc`
+
+#### Application Issues
+
+- **"No devices found"**: Ensure Apple TV is on same network and powered on
+- **"Connection failed"**: Device may require pairing - click "Pair" button
+- **"Pairing failed"**: Enter correct PIN from Apple TV screen
+- **GUI issues**: Update graphics drivers or try `QT_QUICK_BACKEND=software`
+
+#### Debug Mode
+
+Enable debug logging:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh | bash
-```
-
-The installer will:
-- Detect your operating system and package manager
-- Install all required system dependencies
-- Set up a Python virtual environment
-- Install Python dependencies
-- Configure desktop integration (optional)
-- Create command-line shortcuts (optional)
-- Run tests to verify installation
-
-### Manual Installation
-
-If you prefer to install manually or need more control:
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ZProLegend007/AppleTVRemote-GUI.git
-   cd AppleTVRemote-GUI
-   ```
-
-2. **Install Python dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Install system dependencies** (Ubuntu/Debian):
-   ```bash
-   sudo apt-get update
-   sudo apt-get install python3-pyqt6 python3-pyqt6.qtmultimedia
-   ```
-
-4. **Install system dependencies** (Fedora/CentOS):
-   ```bash
-   sudo dnf install python3-PyQt6 python3-PyQt6-multimedia
-   ```
-
-5. **Run the application:**
-   ```bash
-   python main.py
-   ```
-
-### Install using pip (Development)
-
-```bash
-pip install -e .
-appletv-remote-gui
-```
-
-## Usage
-
-### Getting Started
-
-1. **Launch the application:**
-   ```bash
-   python main.py
-   ```
-
-2. **Discover devices:**
-   - The app will automatically scan for devices on startup
-   - Click "Discover Devices" to manually scan
-   - Found devices appear in the Device Manager panel
-
-3. **Connect to a device:**
-   - Click "Connect" next to your Apple TV/HomePod
-   - If pairing is required, follow the on-screen instructions
-   - Enter the PIN shown on your Apple TV when prompted
-
-4. **Control your device:**
-   - Use the **Remote Control** tab for navigation and system controls
-   - Use the **Now Playing** tab for media playback control
-
-### Keyboard Shortcuts
-
-#### Remote Control
-- **Arrow Keys**: Navigation (up/down/left/right)
-- **Enter/Return**: Select
-- **Space**: Play/Pause
-- **M**: Menu button
-- **H**: Home button
-- **+/-**: Volume up/down
-
-#### Application
-- **Ctrl+D**: Discover devices
-- **Ctrl+Q**: Quit application
-- **Ctrl+,**: Open preferences
-
-### Device Pairing
-
-#### PIN Pairing (Legacy Apple TVs)
-1. Click "Pair" next to your device
-2. A PIN will appear on your Apple TV screen
-3. Enter the PIN in the dialog box
-4. Click "Pair" to complete the process
-
-#### Device Code Pairing (Apple TV 4th gen+)
-1. Click "Pair" next to your device
-2. A code will be displayed in the app
-3. Confirm the code matches on your Apple TV
-4. Select "Pair" on your Apple TV to complete
-
-### Configuration
-
-The application stores its configuration in:
-- **Linux**: `~/.config/appletv-remote-gui/config.json`
-- **Credentials**: Stored securely in system keyring
-
-#### Settings Options
-- **Theme**: Choose between Dark and Light themes
-- **Auto-discovery**: Enable/disable automatic device discovery on startup
-- **Discovery timeout**: Set how long to scan for devices (5-60 seconds)
-- **Connection timeout**: Set device connection timeout (5-30 seconds)
-- **Debug logging**: Enable detailed logging for troubleshooting
-
-## Troubleshooting
-
-### Installation Issues
-
-#### "Permission denied" during installation
-- Don't run the installer as root (`sudo`)
-- The installer will ask for sudo when needed for system packages
-- Ensure your user has sudo privileges
-
-#### "Package not found" errors
-- Update your package manager first:
-  - Ubuntu/Debian: `sudo apt-get update`
-  - Fedora: `sudo dnf update`
-  - Arch: `sudo pacman -Sy`
-- Ensure you have the necessary repositories enabled
-- For older distributions, some PyQt6 packages may not be available
-
-#### Python version issues
-- Ensure Python 3.8+ is installed: `python3 --version`
-- On older systems, you may need to install from source or use pyenv
-- Alternative Python installations (conda, pyenv) should work
-
-#### Virtual environment creation fails
-- Ensure `python3-venv` is installed (Ubuntu/Debian)
-- Check available disk space in the installation directory
-- Verify write permissions to the installation location
-
-#### "Command not found: atvremote"
-- If you chose command-line alias installation, restart your terminal
-- Or run: `source ~/.bashrc`
-- Check that `~/.local/bin` is in your PATH: `echo $PATH`
-
-### Application Issues
-
-#### "No devices found"
-- Ensure your Apple TV/HomePod is on the same network
-- Check that your devices are powered on and connected to WiFi
-- Try increasing the discovery timeout in settings
-- Verify firewall settings aren't blocking network discovery
-- Test with: `ping <apple-tv-ip-address>`
-
-#### "Connection failed"
-- Device may require pairing - click "Pair" button
-- Restart the Apple TV if connection issues persist
-- Clear stored credentials in Settings > Devices
-- Check network connectivity between your computer and Apple TV
-- Ensure no VPN is interfering with local network access
-
-#### "Pairing failed"
-- Ensure you're entering the correct PIN from the Apple TV screen
-- Make sure no other devices are trying to pair simultaneously
-- Restart the Apple TV and try pairing again
-- Try using a different pairing method if available
-- Check Apple TV settings for device restrictions
-
-#### Application won't start
-- Verify all dependencies are installed: `pip install -r requirements.txt`
-- Check Python version: `python --version` (requires 3.8+)
-- Install PyQt6 system packages for your distribution
-- Check console output for specific error messages
-- Try running with debug flag: `python main.py --debug`
-
-#### GUI appears blank or distorted
-- Update your graphics drivers
-- Try running with software rendering: `QT_QUICK_BACKEND=software python main.py`
-- Check if running under Wayland, try X11 session
-- Verify PyQt6 multimedia packages are installed
-
-#### Audio/media controls not working
-- Install GStreamer plugins for your distribution
-- Check audio system (PulseAudio/PipeWire) is running
-- Verify codec support with `gst-inspect-1.0`
-- Test audio on Apple TV with other applications
-
-### Network Configuration
-
-#### Firewall Issues
-Common ports that may need to be opened:
-- **3689** - DAAP (iTunes protocol)
-- **7000** - AirPlay
-- **49152-65535** - Various Apple TV services
-
-#### Router/Network Issues
-- Ensure multicast/broadcast traffic is allowed
-- Check for client isolation on WiFi networks
-- Verify both devices are on the same subnet
-- Some enterprise networks block device discovery
-
-### Debug Mode
-
-Enable debug logging to get detailed information:
-
-```bash
-# Command line
 python main.py --debug
-
-# Or via environment variable
-DEBUG=1 python main.py
-
-# With log file
-python main.py --debug 2>&1 | tee appletv-debug.log
 ```
 
-Debug logs include:
-- Device discovery process details
-- Connection attempt information
-- Pairing workflow status
-- API communication logs
-- Error stack traces
+### Development
 
-### Getting Help
-
-If you're still experiencing issues:
-
-1. **Check existing issues**: [GitHub Issues](https://github.com/ZProLegend007/AppleTVRemote-GUI/issues)
-2. **Run with debug logging** and include logs in your report
-3. **Provide system information**:
-   - Linux distribution and version
-   - Python version
-   - PyQt6 version
-   - Apple TV model and version
-4. **Create a new issue** with detailed information
-
-### System Information Collection
-
-Run this command to collect system information for bug reports:
-
+#### Quick Start
 ```bash
-echo "System Information:" > debug-info.txt
-echo "===================" >> debug-info.txt
-echo "OS: $(lsb_release -d 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME)" >> debug-info.txt
-echo "Python: $(python3 --version)" >> debug-info.txt
-echo "PyQt6: $(python3 -c 'import PyQt6; print(PyQt6.__version__)' 2>/dev/null || echo 'Not installed')" >> debug-info.txt
-echo "pip list:" >> debug-info.txt
-pip list | grep -E "(pyqt6|pyatv|qasync)" >> debug-info.txt
-cat debug-info.txt
+git clone https://github.com/ZProLegend007/AppleTVRemote-GUI.git
+cd AppleTVRemote-GUI
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python main.py
 ```
 
-## Development
-
-### Project Structure
-
+#### Project Structure
 ```
 AppleTVRemote-GUI/
 ├── main.py                 # Application entry point
 ├── ui/                     # User interface modules
-│   ├── main_window.py      # Main application window
-│   ├── device_manager.py   # Device discovery and management
-│   ├── remote_control.py   # Apple TV remote interface
-│   ├── now_playing.py      # Now playing controls
-│   ├── pairing_dialog.py   # Pairing workflow dialogs
-│   └── settings.py         # Application settings
 ├── backend/                # Backend logic modules
-│   ├── device_controller.py # PyATV integration
-│   ├── pairing_manager.py   # Pairing logic
-│   └── config_manager.py    # Configuration management
 ├── resources/              # Application resources
-│   ├── icons/              # UI icons and images
-│   ├── styles/             # CSS/QSS stylesheets
-│   └── config/             # Default configurations
 ├── requirements.txt        # Python dependencies
-├── setup.py               # Installation script
-└── README.md              # This file
+└── install.sh             # Professional installer
 ```
-
-### Building from Source
-
-1. **Set up development environment:**
-   ```bash
-   git clone https://github.com/ZProLegend007/AppleTVRemote-GUI.git
-   cd AppleTVRemote-GUI
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-2. **Run in development mode:**
-   ```bash
-   python main.py
-   ```
-
-3. **Run with debug output:**
-   ```bash
-   PYTHONPATH=. python main.py --debug
-   ```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-feature`)
-3. Make your changes
-4. Test thoroughly
-5. Commit your changes (`git commit -am 'Add new feature'`)
-6. Push to the branch (`git push origin feature/new-feature`)
-7. Create a Pull Request
 
 ## Dependencies
 
@@ -421,69 +152,15 @@ AppleTVRemote-GUI/
 - **Pillow** (>=9.0.0) - Image processing library
 - **keyring** (>=23.0.0) - Secure credential storage
 
-### System Requirements
-- **Linux** with X11 or Wayland
-- **Python 3.8+**
-- **Qt6** libraries
-- **Network access** to local Apple TV/HomePod devices
-
-## Technical Details
-
-### Architecture
-- **Async/await** support using qasync for non-blocking operations
-- **Separation of concerns** between UI and backend logic
-- **Signal-slot** communication for loose coupling
-- **Secure credential storage** using system keyring
-- **Robust error handling** with user-friendly feedback
-
-### Supported Protocols
-- **MRP** (Media Remote Protocol) - Primary Apple TV protocol
-- **DMAP** (Digital Media Access Protocol) - Legacy iTunes protocol
-- **AirPlay** - Audio/video streaming protocol
-- **Companion** - Modern pairing and control protocol
-
-### Supported Devices
-- **Apple TV HD** (4th generation)
-- **Apple TV 4K** (5th generation and later)
-- **HomePod** (original and mini)
-- **Legacy Apple TV** models (with limited functionality)
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-- **pyatv library** - Excellent Apple TV communication library by Pierre Ståhl
-- **PyQt6** - Powerful cross-platform GUI toolkit
-- **Apple** - For creating innovative devices that inspire projects like this
-- **Open Source Community** - For the tools and libraries that make this possible
-
 ## Support
 
-- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/ZProLegend007/AppleTVRemote-GUI/issues)
-- **Discussions**: Join conversations on [GitHub Discussions](https://github.com/ZProLegend007/AppleTVRemote-GUI/discussions)
-- **Wiki**: Check the [project wiki](https://github.com/ZProLegend007/AppleTVRemote-GUI/wiki) for additional documentation
-
-## Roadmap
-
-### Planned Features
-- [ ] **Multi-device support** - Control multiple Apple TVs simultaneously
-- [ ] **Playlist management** - Create and manage playlists
-- [ ] **Screen mirroring** - View Apple TV screen on computer
-- [ ] **Automation scripts** - Programmable device control
-- [ ] **Plugin system** - Extensible functionality
-- [ ] **Mobile companion** - Android/iOS remote apps
-- [ ] **Voice control** - Integration with speech recognition
-- [ ] **Statistics tracking** - Usage analytics and reports
-
-### Version History
-- **v1.0.0** - Initial release with core functionality
-  - Device discovery and pairing
-  - Remote control interface
-  - Now playing controls
-  - Settings management
-  - Dark/Light themes
+- **Issues**: [GitHub Issues](https://github.com/ZProLegend007/AppleTVRemote-GUI/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ZProLegend007/AppleTVRemote-GUI/discussions)
+- **Wiki**: [Project Wiki](https://github.com/ZProLegend007/AppleTVRemote-GUI/wiki)
 
 ---
 
