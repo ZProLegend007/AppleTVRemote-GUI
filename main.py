@@ -10,18 +10,19 @@ import signal
 from pathlib import Path
 
 # Suppress Qt verbose logging for clean debug output
-os.environ['QT_LOGGING_RULES'] = (
-    'qt.text.font.*=false;'
-    'qt.widgets.*=false;'
-    'qt.core.*=false;'
-    'qt.qpa.*=false;'
-    'qt.accessibility.*=false'
-)
+os.environ['QT_LOGGING_RULES'] = '*=false'
+os.environ['QT_DEBUG_PLUGINS'] = '0'
+os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
+os.environ['QT_QUIET'] = '1'
+os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QLoggingCategory
 from PyQt6.QtGui import QPixmap, QIcon
 import qasync
+
+# SUPPRESS ALL Qt logging categories
+QLoggingCategory.setFilterRules("*=false")
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent
