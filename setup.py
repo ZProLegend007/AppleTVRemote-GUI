@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup script for AppleTVRemote-GUI."""
+"""Setup script for ApplerGUI."""
 
 from setuptools import setup, find_packages
 
@@ -10,14 +10,14 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="appletv-remote-gui",
+    name="applergui",
     version="1.0.0",
     author="Zac",
     author_email="",
     description="A modern Linux GUI application for controlling Apple TV and HomePod devices",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/ZProLegend007/AppleTVRemote-GUI",
+    url="https://github.com/ZProLegend007/ApplerGUI",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -36,7 +36,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "appletv-remote-gui=main:main",
+            "applergui=main:main",
         ],
     },
     include_package_data=True,

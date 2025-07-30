@@ -1,11 +1,11 @@
-# AppleTVRemote-GUI
+# ApplerGUI
 
 🍎 **Modern Linux GUI for Apple TV & HomePod Control**
 
 ## 🚀 Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
 ```
 
 **That's it!** The installer handles everything automatically with a beautiful interactive setup.
@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/mai
 
 ```bash
 # Download and inspect the installer first
-curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh -o install.sh
 less install.sh  # Review the script
 chmod +x install.sh
 ./install.sh
@@ -32,8 +32,8 @@ chmod +x install.sh
 ## 📖 Usage
 
 After installation, launch from:
-- **GUI**: Application menu → AppleTVRemote-GUI
-- **Terminal**: `atvremote` (if CLI shortcut enabled)
+- **GUI**: Application menu → ApplerGUI
+- **Terminal**: `applergui`
 
 ## 🛠️ Troubleshooting
 
@@ -122,8 +122,8 @@ python main.py --debug
 
 #### Quick Start
 ```bash
-git clone https://github.com/ZProLegend007/AppleTVRemote-GUI.git
-cd AppleTVRemote-GUI
+git clone https://github.com/ZProLegend007/ApplerGUI.git
+cd ApplerGUI
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -132,7 +132,7 @@ python main.py
 
 #### Project Structure
 ```
-AppleTVRemote-GUI/
+ApplerGUI/
 ├── main.py                 # Application entry point
 ├── ui/                     # User interface modules
 ├── backend/                # Backend logic modules
@@ -158,9 +158,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/ZProLegend007/AppleTVRemote-GUI/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ZProLegend007/AppleTVRemote-GUI/discussions)
-- **Wiki**: [Project Wiki](https://github.com/ZProLegend007/AppleTVRemote-GUI/wiki)
+- **Issues**: [GitHub Issues](https://github.com/ZProLegend007/ApplerGUI/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ZProLegend007/ApplerGUI/discussions)
+- **Wiki**: [Project Wiki](https://github.com/ZProLegend007/ApplerGUI/wiki)
 
 ---
 

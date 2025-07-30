@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# AppleTVRemote-GUI Professional Installer
-# One-line install: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh | bash
+# ApplerGUI Professional Installer
+# One-line install: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
 
 set -e  # Exit on error, but handle gracefully
 
@@ -37,7 +37,7 @@ show_section() {
     cat << EOF
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║                                                                            ║
-║   🍎 AppleTVRemote-GUI Professional Installer                              ║
+║   🍎 ApplerGUI Professional Installer                                      ║
 ║                                                                            ║
 ║   Modern Linux GUI for Apple TV & HomePod Control                         ║
 ║                                                                            ║
@@ -79,7 +79,7 @@ clear_and_banner() {
     cat << 'EOF'
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║                                                                            ║
-║   🍎 AppleTVRemote-GUI Professional Installer                              ║
+║   🍎 ApplerGUI Professional Installer                                      ║
 ║                                                                            ║
 ║   Modern Linux GUI for Apple TV & HomePod Control                         ║
 ║                                                                            ║
@@ -118,19 +118,33 @@ SAMPLE_CONFIG=false
 EXTRA_THEMES=false
 INSTALL_PYQT6_VIA_PIP=false
 
-# Spinner animation for long operations
-show_spinner() {
+# Clean spinner animation that doesn't conflict with command output
+show_spinner_clean() {
     local pid=$1
     local message="$2"
     local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
     local i=0
     
+    # Hide command output, show only spinner
     while kill -0 $pid 2>/dev/null; do
         i=$(( (i+1) %8 ))
-        echo -ne "\r${BLUE}${spin:$i:1}${NC} $message"
+        printf "\r${BLUE}${spin:$i:1}${NC} $message"
         sleep .1
     done
-    echo -ne "\r✓ $message\n"
+    
+    # Clear spinner line and show result
+    printf "\r\033[K"
+    
+    # Check exit code and show appropriate message
+    wait $pid
+    local exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        printf "✓ $message\n"
+    else
+        printf "✗ $message (failed)\n"
+    fi
+    
+    return $exit_code
 }
 
 # Progress bar for installations
@@ -321,7 +335,7 @@ check_python() {
 # Enhanced interactive prompts for installation preferences  
 ask_user_preferences() {
     show_section "⚙️ INSTALLATION PREFERENCES"
-    echo -e "${GRAY}Configure your AppleTVRemote-GUI installation with the options below.${NC}"
+    echo -e "${GRAY}Configure your ApplerGUI installation with the options below.${NC}"
     echo -e "${GRAY}Each option includes an explanation to help you decide.${NC}\n"
     
     # Reset preferences
@@ -334,7 +348,7 @@ ask_user_preferences() {
     SAMPLE_CONFIG=false
     EXTRA_THEMES=false
     
-    if ask_yn "🖥️ Create desktop entry?" "y" "Add AppleTVRemote-GUI to your application menu for easy access"; then
+    if ask_yn "🖥️ Create desktop entry?" "y" "Add ApplerGUI to your application menu for easy access"; then
         DESKTOP_ENTRY=true
         CREATE_DESKTOP_ENTRY=true
     fi
@@ -352,7 +366,7 @@ ask_user_preferences() {
         USER_INSTALL=true
     fi
     
-    if ask_yn "💻 Create command-line shortcut?" "y" "Add 'atvremote' command to your PATH for terminal access"; then
+    if ask_yn "💻 Create command-line shortcut?" "y" "Add 'applergui' command to your PATH for terminal access"; then
         CLI_SHORTCUT=true
         CREATE_CLI_ALIAS=true
     fi
@@ -362,7 +376,7 @@ ask_user_preferences() {
         INSTALL_DEV_DEPS=true
     fi
     
-    if ask_yn "🚀 Enable auto-start?" "n" "Launch AppleTVRemote-GUI automatically when you log in"; then
+    if ask_yn "🚀 Enable auto-start?" "n" "Launch ApplerGUI automatically when you log in"; then
         AUTO_START=true
     fi
     
@@ -388,7 +402,7 @@ ask_user_preferences() {
 
 # Launch application after installation
 launch_application() {
-    print_info "🚀 Starting AppleTVRemote-GUI..."
+    print_info "🚀 Starting ApplerGUI..."
     cd "$INSTALL_DIR"
     source "$VENV_DIR/bin/activate"
     
@@ -397,7 +411,7 @@ launch_application() {
     sleep 2
     
     if pgrep -f "python3 main.py" > /dev/null; then
-        print_success "✓ AppleTVRemote-GUI launched successfully!"
+        print_success "✓ ApplerGUI launched successfully!"
         echo -e "${GRAY}   The application is now running in the background${NC}"
     else
         print_warning "⚠ Application may have failed to start"
@@ -457,7 +471,7 @@ show_installation_summary() {
     echo -e "${BOLD}Selected Configuration:${NC}"
     echo -e "├─ Installation Type: $([ "$SYSTEM_WIDE" = true ] && echo "System-wide" || echo "User-specific")"
     echo -e "├─ Desktop Entry: $([ "$DESKTOP_ENTRY" = true ] && echo "Yes" || echo "No")"
-    echo -e "├─ CLI Shortcut: $([ "$CLI_SHORTCUT" = true ] && echo "Yes ('atvremote')" || echo "No")"
+    echo -e "├─ CLI Shortcut: $([ "$CLI_SHORTCUT" = true ] && echo "Yes ('applergui')" || echo "No")"
     echo -e "├─ Development Tools: $([ "$DEV_TOOLS" = true ] && echo "Yes" || echo "No")"
     echo -e "├─ Auto-start: $([ "$AUTO_START" = true ] && echo "Yes" || echo "No")"
     echo -e "├─ Audio Codecs: $([ "$AUDIO_CODECS" = true ] && echo "Yes" || echo "No")"
@@ -468,7 +482,7 @@ show_installation_summary() {
     echo -e "├─ OS: $OS_TYPE ($DETECTED_OS)"
     echo -e "├─ Package Manager: $PACKAGE_MANAGER"
     echo -e "├─ Sudo Access: $([ "$SUDO_AVAILABLE" = true ] && echo "Available" || echo "Not available")"
-    echo -e "└─ Install Location: $([ "$SYSTEM_WIDE" = true ] && echo "/opt/appletv-remote-gui" || echo "~/.local/share/appletv-remote-gui")"
+    echo -e "└─ Install Location: $([ "$SYSTEM_WIDE" = true ] && echo "/opt/applergui" || echo "~/.local/share/applergui")"
 }
 
 # Show success message and next steps
@@ -477,7 +491,7 @@ show_success_message() {
     cat << 'EOF'
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
-║  🎉 Installation Complete! AppleTVRemote-GUI is ready to use.                ║
+║  🎉 Installation Complete! ApplerGUI is ready to use.                      ║
 ║                                                                              ║
 ║  Your Apple TV and HomePod control center is now installed and configured.  ║
 ║                                                                              ║
@@ -492,12 +506,16 @@ show_next_steps() {
     
     echo -e "${BOLD}How to Launch:${NC}"
     if [[ "$DESKTOP_ENTRY" == "true" ]]; then
-        echo -e "• ${GREEN}GUI:${NC} Find 'Apple TV Remote GUI' in your application menu"
+        echo -e "• ${GREEN}GUI:${NC} Find 'ApplerGUI' in your application menu"
     fi
     if [[ "$CLI_SHORTCUT" == "true" ]]; then
-        echo -e "• ${BLUE}Terminal:${NC} Run ${CYAN}atvremote${NC} command"
+        echo -e "• ${BLUE}Terminal:${NC} Run ${CYAN}applergui${NC} command"
     fi
-    echo -e "• ${YELLOW}Direct:${NC} Run ${CYAN}$VENV_DIR/bin/python $INSTALL_DIR/main.py${NC}"
+    
+    echo -e "\n${BOLD}Installation Details:${NC}"
+    echo -e "• Location: ${CYAN}$INSTALL_DIR${NC}"
+    echo -e "• Command: ${CYAN}applergui${NC}"
+    echo -e "• Update: ${CYAN}applergui --update${NC}"
     
     echo -e "\n${BOLD}First Time Setup:${NC}"
     echo -e "1. Launch the application"
@@ -507,12 +525,12 @@ show_next_steps() {
     echo -e "5. Start controlling your Apple TV!"
     
     echo -e "\n${BOLD}Support & Resources:${NC}"
-    echo -e "• Documentation: ${CYAN}https://github.com/ZProLegend007/AppleTVRemote-GUI${NC}"
-    echo -e "• Report Issues: ${CYAN}https://github.com/ZProLegend007/AppleTVRemote-GUI/issues${NC}"
-    echo -e "• Configuration: ${CYAN}~/.config/appletv-remote-gui/${NC}"
+    echo -e "• Documentation: ${CYAN}https://github.com/ZProLegend007/ApplerGUI${NC}"
+    echo -e "• Report Issues: ${CYAN}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
+    echo -e "• Configuration: ${CYAN}~/.config/applergui/${NC}"
     
     if [[ "$CLI_SHORTCUT" == "true" ]]; then
-        echo -e "\n${GRAY}💡 Tip: You may need to restart your terminal or run 'source ~/.bashrc' to use the 'atvremote' command${NC}"
+        echo -e "\n${GRAY}💡 Tip: You may need to restart your terminal or run 'source ~/.bashrc' to use the 'applergui' command${NC}"
     fi
 }
 
@@ -764,7 +782,7 @@ setup_installation_directory() {
     print_info "→ 📁 Setting up installation directory..."
     
     # User-specific installation path
-    local install_dir="$HOME/.local/share/appletv-remote-gui"
+    local install_dir="$HOME/.local/share/applergui"
     
     # Create directory structure
     mkdir -p "$install_dir"
@@ -789,9 +807,9 @@ setup_repository() {
     
     print_info "→ Cloning repository..."
     {
-        git clone --depth 1 https://github.com/ZProLegend007/AppleTVRemote-GUI.git "$INSTALL_DIR" 2>&1
+        git clone --depth 1 https://github.com/ZProLegend007/ApplerGUI.git "$INSTALL_DIR" 2>&1
     } &
-    show_spinner $! "Downloading AppleTVRemote-GUI"
+    show_spinner $! "Downloading ApplerGUI"
     
     wait $!
     if [[ $? -eq 0 ]]; then
@@ -912,16 +930,16 @@ install_python_deps() {
     fi
     
     # Install in development mode
-    print_info "→ → Installing AppleTVRemote-GUI..."
+    print_info "→ → Installing ApplerGUI..."
     {
         pip install -e "$INSTALL_DIR" 2>&1
     } &
-    show_spinner $! "Installing AppleTVRemote-GUI"
+    show_spinner $! "Installing ApplerGUI"
     
     if [[ $? -eq 0 ]]; then
-        print_success "✓ ✓ AppleTVRemote-GUI installed successfully"
+        print_success "✓ ✓ ApplerGUI installed successfully"
     else
-        print_error "✗ ✗ Failed to install AppleTVRemote-GUI"
+        print_error "✗ ✗ Failed to install ApplerGUI"
         exit 1
     fi
     
@@ -970,10 +988,10 @@ create_desktop_entry() {
     print_header "\n🖥️ Creating Desktop Entry"
     
     if [ "$USER_INSTALL" = true ]; then
-        DESKTOP_ENTRY_PATH="$HOME/.local/share/applications/appletv-remote-gui.desktop"
+        DESKTOP_ENTRY_PATH="$HOME/.local/share/applications/applergui.desktop"
         mkdir -p "$HOME/.local/share/applications"
     else
-        DESKTOP_ENTRY_PATH="/usr/share/applications/appletv-remote-gui.desktop"
+        DESKTOP_ENTRY_PATH="/usr/share/applications/applergui.desktop"
     fi
     
     print_info "Creating desktop entry at $DESKTOP_ENTRY_PATH"
@@ -992,7 +1010,7 @@ StartupNotify=true
 MimeType=
 Categories=AudioVideo;RemoteAccess;Network;
 Keywords=Apple;TV;HomePod;Remote;Control;Media;
-StartupWMClass=appletv-remote-gui
+StartupWMClass=applergui
 EOF
     
     if [ "$USER_INSTALL" = false ]; then
@@ -1019,41 +1037,10 @@ create_cli_alias() {
     
     print_header "\n💻 Creating Command-line Alias"
     
-    if [ "$USER_INSTALL" = true ]; then
-        BIN_DIR="$HOME/.local/bin"
-        mkdir -p "$BIN_DIR"
-        SCRIPT_PATH="$BIN_DIR/atvremote"
-    else
-        BIN_DIR="/usr/local/bin"
-        SCRIPT_PATH="$BIN_DIR/atvremote"
-    fi
+    # Use the enhanced CLI command instead of simple script
+    create_enhanced_cli_command
     
-    print_info "Creating executable script at $SCRIPT_PATH"
-    
-    cat > "$SCRIPT_PATH" << EOF
-#!/bin/bash
-# AppleTVRemote-GUI launcher script
-cd "$INSTALL_DIR"
-exec "$VENV_DIR/bin/python" "$INSTALL_DIR/main.py" "\$@"
-EOF
-    
-    chmod +x "$SCRIPT_PATH"
-    
-    if [ "$USER_INSTALL" = false ]; then
-        sudo mv "$SCRIPT_PATH" "$SCRIPT_PATH"
-        sudo chmod +x "$SCRIPT_PATH"
-    fi
-    
-    # Add to PATH if not already there
-    if [ "$USER_INSTALL" = true ]; then
-        if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-            print_info "Adding $HOME/.local/bin to PATH in ~/.bashrc"
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-            print_warning "Please run 'source ~/.bashrc' or restart your terminal to use 'atvremote' command"
-        fi
-    fi
-    
-    print_success "Command-line alias 'atvremote' created successfully"
+    print_success "Command-line alias 'applergui' created successfully"
 }
 
 # Create configuration directory
@@ -1064,7 +1051,7 @@ create_config_directory() {
     
     print_header "\n⚙️ Creating Configuration Directory"
     
-    CONFIG_DIR="$HOME/.config/appletv-remote-gui"
+    CONFIG_DIR="$HOME/.config/applergui"
     print_info "Creating configuration directory at $CONFIG_DIR"
     mkdir -p "$CONFIG_DIR"
     
@@ -1095,7 +1082,7 @@ setup_auto_start() {
     AUTOSTART_DIR="$HOME/.config/autostart"
     mkdir -p "$AUTOSTART_DIR"
     
-    cat > "$AUTOSTART_DIR/appletv-remote-gui.desktop" << EOF
+    cat > "$AUTOSTART_DIR/applergui.desktop" << EOF
 [Desktop Entry]
 Type=Application
 Name=Apple TV Remote GUI
@@ -1124,7 +1111,7 @@ download_sample_themes() {
     
     # Create a sample dark theme
     cat > "$THEMES_DIR/midnight.qss" << 'EOF'
-/* Midnight Theme for AppleTVRemote-GUI */
+/* Dark Theme for ApplerGUI */
 QMainWindow {
     background-color: #1a1a1a;
     color: #ffffff;
@@ -1149,7 +1136,7 @@ EOF
     
     # Create a sample light theme
     cat > "$THEMES_DIR/daylight.qss" << 'EOF'
-/* Daylight Theme for AppleTVRemote-GUI */
+/* Light Theme for ApplerGUI */
 QMainWindow {
     background-color: #f5f5f5;
     color: #333333;
@@ -1244,7 +1231,7 @@ main() {
     if ! ask_yn "🚀 Proceed with installation?" "y" "Start the installation process with your selected options"; then
         clear
         print_info "Installation cancelled by user"
-        echo -e "${GRAY}Thank you for trying AppleTVRemote-GUI!${NC}"
+        echo -e "${GRAY}Thank you for trying ApplerGUI!${NC}"
         exit 0
     fi
     
@@ -1296,14 +1283,154 @@ main() {
     show_section "🎉 INSTALLATION COMPLETE"
     show_success_message
     
-    if ask_yn "🚀 Launch AppleTVRemote-GUI now?" "y" "Start the application immediately to test the installation"; then
+    if ask_yn "🚀 Launch ApplerGUI now?" "y" "Start the application immediately to test the installation"; then
         launch_application
     fi
     
     clear
     show_next_steps
     
-    echo -e "\n${GREEN}${BOLD}🎉 Thank you for installing AppleTVRemote-GUI!${NC}"
+    echo -e "\n${GREEN}${BOLD}🎉 Thank you for installing ApplerGUI!${NC}"
+    
+    # Create update functionality
+    create_update_functionality
+}
+
+# Create update script and functionality
+create_update_functionality() {
+    local install_dir="$INSTALL_DIR"
+    
+    # Create update script
+    cat > "$install_dir/update.sh" << 'EOF'
+#!/bin/bash
+# ApplerGUI Update Script
+
+APP_DIR="$HOME/.local/share/applergui"
+REPO_URL="https://github.com/ZProLegend007/ApplerGUI.git"
+
+echo "🔄 Checking for ApplerGUI updates..."
+
+cd "$APP_DIR" || exit 1
+
+# Fetch latest changes
+git fetch origin main
+
+# Check if update available
+LOCAL_COMMIT=$(git rev-parse HEAD)
+REMOTE_COMMIT=$(git rev-parse origin/main)
+
+if [[ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]]; then
+    echo "📦 Update available! Updating ApplerGUI..."
+    
+    # Backup current installation
+    cp -r "$APP_DIR" "$APP_DIR.backup.$(date +%Y%m%d_%H%M%S)"
+    
+    # Pull latest changes
+    git pull origin main
+    
+    # Reinstall dependencies
+    source venv/bin/activate
+    pip install -r requirements.txt
+    pip install -e .
+    
+    echo "✅ ApplerGUI updated successfully!"
+else
+    echo "✅ ApplerGUI is already up to date!"
+fi
+EOF
+    
+    chmod +x "$install_dir/update.sh"
+    
+    # Add update check to application startup
+    cat > "$install_dir/check_updates.py" << 'EOF'
+import subprocess
+import sys
+import os
+from pathlib import Path
+
+def check_for_updates():
+    """Check for updates on application startup"""
+    try:
+        app_dir = Path.home() / ".local" / "share" / "applergui"
+        os.chdir(app_dir)
+        
+        # Fetch latest commit info
+        result = subprocess.run(
+            ["git", "fetch", "origin", "main"],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        if result.returncode == 0:
+            # Check if update available
+            local = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True, text=True
+            ).stdout.strip()
+            
+            remote = subprocess.run(
+                ["git", "rev-parse", "origin/main"],
+                capture_output=True, text=True
+            ).stdout.strip()
+            
+            if local != remote:
+                print("📦 Update available for ApplerGUI!")
+                print("💡 Run 'applergui --update' to update")
+                
+    except Exception as e:
+        # Silently handle update check failures
+        pass
+
+if __name__ == "__main__":
+    check_for_updates()
+EOF
+}
+
+# Create enhanced CLI command with update functionality
+create_enhanced_cli_command() {
+    local bin_dir="$HOME/.local/bin"
+    mkdir -p "$bin_dir"
+    
+    cat > "$bin_dir/applergui" << EOF
+#!/bin/bash
+# ApplerGUI Command Line Interface
+
+INSTALL_DIR="$HOME/.local/share/applergui"
+VENV_DIR="\$INSTALL_DIR/venv"
+
+case "\$1" in
+    --update)
+        echo "🔄 Updating ApplerGUI..."
+        bash "\$INSTALL_DIR/update.sh"
+        ;;
+    --version)
+        cd "\$INSTALL_DIR"
+        git describe --tags --always 2>/dev/null || echo "unknown"
+        ;;
+    --help)
+        echo "ApplerGUI - Apple TV & HomePod Control"
+        echo "Usage:"
+        echo "  applergui         Launch GUI application"
+        echo "  applergui --update    Update to latest version"
+        echo "  applergui --version   Show version information"
+        echo "  applergui --help      Show this help"
+        ;;
+    *)
+        # Launch GUI application
+        cd "\$INSTALL_DIR"
+        source "\$VENV_DIR/bin/activate"
+        python3 check_updates.py
+        python3 -m src.main
+        ;;
+esac
+EOF
+    
+    chmod +x "$bin_dir/applergui"
+    
+    # Add to PATH if not already there
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+    fi
+}
     echo -e "${GRAY}Made with ❤️ for the Apple TV community${NC}\n"
 }
 

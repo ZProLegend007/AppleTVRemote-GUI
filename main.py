@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AppleTVRemote-GUI - A modern Linux GUI application for controlling Apple TV and HomePod devices.
+ApplerGUI - A modern Linux GUI application for controlling Apple TV and HomePod devices.
 """
 
 import sys
@@ -35,14 +35,14 @@ class AppleTVRemoteApp:
     def setup_application(self):
         """Set up the Qt application."""
         # Set application properties
-        QCoreApplication.setApplicationName("AppleTVRemote-GUI")
+        QCoreApplication.setApplicationName("ApplerGUI")
         QCoreApplication.setApplicationVersion("1.0.0")
-        QCoreApplication.setOrganizationName("AppleTVRemote")
-        QCoreApplication.setOrganizationDomain("github.com/ZProLegend007/AppleTVRemote-GUI")
+        QCoreApplication.setOrganizationName("ApplerGUI")
+        QCoreApplication.setOrganizationDomain("github.com/ZProLegend007/ApplerGUI")
         
         # Create Qt application
         self.app = QApplication(sys.argv)
-        self.app.setApplicationDisplayName("Apple TV Remote")
+        self.app.setApplicationDisplayName("ApplerGUI")
         
         # Set application icon if available
         icon_path = project_root / "resources" / "icons" / "app_icon.png"
