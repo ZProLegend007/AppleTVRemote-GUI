@@ -118,8 +118,28 @@ SAMPLE_CONFIG=false
 EXTRA_THEMES=false
 INSTALL_PYQT6_VIA_PIP=false
 
-# Completely clean spinner animation with isolated output
-show_spinner_completely_clean() {
+# Create comprehensive logging system
+setup_logging() {
+    local install_dir="$INSTALL_DIR"
+    local log_dir="$install_dir/logs"
+    
+    mkdir -p "$log_dir"
+    
+    export INSTALL_LOG="$log_dir/install.log"
+    export ERROR_LOG="$log_dir/error.log"
+    export DEBUG_LOG="$log_dir/debug.log"
+    
+    # Create log headers
+    echo "ApplerGUI Installation Log - $(date)" > "$INSTALL_LOG"
+    echo "ApplerGUI Error Log - $(date)" > "$ERROR_LOG"
+    echo "ApplerGUI Debug Log - $(date)" > "$DEBUG_LOG"
+    
+    print_info "→ Logging system initialized"
+    print_info "   Logs will be saved to: $log_dir"
+}
+
+# Enhanced spinner with complete output isolation and logging
+show_spinner_isolated() {
     local pid=$1
     local message="$2"
     local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
@@ -150,9 +170,87 @@ show_spinner_completely_clean() {
         printf "${GREEN}✓${NC} $message ${GRAY}(${duration}s)${NC}\n"
     else
         printf "${RED}✗${NC} $message ${GRAY}(failed after ${duration}s)${NC}\n"
+        if [[ -n "$ERROR_LOG" ]]; then
+            printf "${GRAY}  └─ Check logs: $ERROR_LOG${NC}\n"
+        fi
     fi
     
     return $exit_code
+}
+
+# Install packages with complete output hiding and logging
+install_packages_silent() {
+    local packages=("$@")
+    local temp_log="/tmp/applergui_apt_$$.log"
+    
+    {
+        DEBIAN_FRONTEND=noninteractive apt-get update >/dev/null 2>&1
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}" >>"$INSTALL_LOG" 2>"$temp_log"
+        
+        # Append errors to main error log if it exists
+        if [[ -f "$temp_log" && -n "$ERROR_LOG" ]]; then
+            cat "$temp_log" >> "$ERROR_LOG"
+        fi
+    } &
+    local apt_pid=$!
+    
+    show_spinner_isolated $apt_pid "Installing system packages: ${packages[*]}"
+    local exit_code=$?
+    
+    # Clean up temp log
+    rm -f "$temp_log"
+    
+    return $exit_code
+}
+
+# Python package installation with output hiding and logging
+install_python_packages_silent() {
+    local packages=("$@")
+    local temp_log="/tmp/applergui_pip_$$.log"
+    
+    {
+        pip install --quiet --no-warn-script-location "${packages[@]}" >"$temp_log" 2>&1
+        
+        # Append output to main log if it exists
+        if [[ -f "$temp_log" && -n "$INSTALL_LOG" ]]; then
+            cat "$temp_log" >> "$INSTALL_LOG"
+        fi
+    } &
+    local pip_pid=$!
+    
+    show_spinner_isolated $pip_pid "Installing Python packages: ${packages[*]}"
+    local exit_code=$?
+    
+    # Clean up temp log
+    rm -f "$temp_log"
+    
+    return $exit_code
+}
+
+# Always use pip for PyQt6 installation - skip apt entirely  
+install_python_gui_packages() {
+    print_info "→ 🐍 Installing GUI packages via pip..."
+    
+    # Skip apt installation for PyQt6 - always fails on most systems
+    print_info "ℹ Using pip for PyQt6 (apt package not available on most systems)"
+    
+    # Ensure virtual environment is activated
+    if [[ -z "$VIRTUAL_ENV" ]]; then
+        source "$VENV_DIR/bin/activate"
+    fi
+    
+    # Install PyQt6 and dependencies via pip
+    if install_python_packages_silent "PyQt6" "PyQt6-Qt6" "PyQt6-tools"; then
+        print_success "✓ PyQt6 installed successfully via pip"
+        return 0
+    else
+        print_error "✗ Failed to install PyQt6 via pip"
+        print_info "💡 This may be due to missing system dependencies"
+        if [[ -n "$ERROR_LOG" ]]; then
+            print_info "💡 Check logs: $ERROR_LOG"
+        fi
+        return 1
+    fi
 }
 
 # Progress bar for installations
@@ -408,22 +506,109 @@ ask_user_preferences() {
     show_waiting_dots "Processing your preferences" 2
 }
 
-# Launch application after installation
-launch_application() {
+# Enhanced application launcher with Qt fixes and error handling
+launch_applergui_safe() {
+    local install_dir="$INSTALL_DIR"
+    local log_dir="$install_dir/logs"
+    
     print_info "🚀 Starting ApplerGUI..."
-    cd "$INSTALL_DIR"
-    source "$VENV_DIR/bin/activate"
     
-    # Launch in background to not block terminal
-    nohup python3 main.py > /dev/null 2>&1 &
-    sleep 2
+    cd "$install_dir" || {
+        print_error "✗ Installation directory not found"
+        return 1
+    }
     
-    if pgrep -f "python3 main.py" > /dev/null; then
-        print_success "✓ ApplerGUI launched successfully!"
-        echo -e "${GRAY}   The application is now running in the background${NC}"
+    # Create logs directory if not exists
+    mkdir -p "$log_dir"
+    
+    # Activate virtual environment
+    source venv/bin/activate || {
+        print_error "✗ Failed to activate virtual environment"
+        return 1
+    }
+    
+    # Set clean Qt/GTK environment
+    export QT_QPA_PLATFORM_PLUGIN_PATH=""
+    export GTK_THEME="Adwaita"
+    export GDK_BACKEND=x11
+    export QT_LOGGING_RULES="*.debug=false"
+    export QT_STYLE_OVERRIDE=""
+    export QT_QPA_PLATFORMTHEME=""
+    
+    # Disable problematic GTK environment variables
+    unset GTK_CSS_PATH
+    unset GTK_THEME_PATH
+    
+    print_info "→ Testing Qt signal connections..."
+    
+    # Run Qt connection check (but don't fail if it has warnings)
+    if python3 qt_connection_fix.py >/dev/null 2>&1; then
+        print_success "✓ Qt connections verified"
     else
-        print_warning "⚠ Application may have failed to start"
-        echo -e "${GRAY}   You can try launching manually: $VENV_DIR/bin/python $INSTALL_DIR/main.py${NC}"
+        print_warning "⚠ Qt connection check had warnings, but continuing..."
+    fi
+    
+    # Try to launch with error capture
+    print_info "→ Launching application..."
+    
+    {
+        python3 -c "
+import sys
+sys.path.insert(0, '.')
+
+try:
+    from ui.main_window import MainWindow
+    from backend.config_manager import ConfigManager
+    from backend.device_controller import DeviceController
+    from backend.pairing_manager import PairingManager
+    from PyQt6.QtWidgets import QApplication
+    
+    app = QApplication(sys.argv)
+    
+    # Setup backend components
+    config_manager = ConfigManager()
+    device_controller = DeviceController(config_manager)
+    pairing_manager = PairingManager(config_manager)
+    
+    # Create main window
+    window = MainWindow(config_manager, device_controller, pairing_manager)
+    window.show()
+    
+    print('✓ ApplerGUI launched successfully')
+    sys.exit(app.exec())
+    
+except Exception as e:
+    print(f'✗ Failed to start ApplerGUI: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+" >>"$log_dir/launch.log" 2>&1
+    } &
+    local launch_pid=$!
+    
+    # Give app time to start
+    sleep 3
+    
+    if kill -0 $launch_pid 2>/dev/null; then
+        print_success "✅ ApplerGUI launched successfully!"
+        print_info "💡 Application is running in the background"
+        print_info "💡 Logs available at: $log_dir/launch.log"
+        return 0
+    else
+        wait $launch_pid
+        local exit_code=$?
+        
+        print_error "✗ Failed to start ApplerGUI"
+        print_info "💡 Error details saved to: $log_dir/launch.log"
+        print_info "💡 Try running: applergui --debug"
+        
+        # Show last few lines of log if it exists
+        if [[ -f "$log_dir/launch.log" ]]; then
+            print_info "💡 Last error lines:"
+            tail -3 "$log_dir/launch.log" | sed 's/^/   /'
+        fi
+        
+        return $exit_code
     fi
 }
 ask_yn() {
@@ -660,8 +845,7 @@ install_packages_with_spinner() {
     } &
     local apt_pid=$!
     
-    show_spinner_completely_clean $apt_pid "Installing ${packages[*]}"
-    wait $apt_pid
+    show_spinner_isolated $apt_pid "Installing ${packages[*]}"
     local exit_code=$?
     
     return $exit_code
@@ -682,7 +866,7 @@ install_system_packages() {
                 "libpulse-dev" "libavahi-client-dev"
             )
             
-            # Try to install PyQt6 system packages
+            # Try to install PyQt6 system packages (but expect to fail)
             local pyqt_packages=("python3-pyqt6" "python3-pyqt6.qtmultimedia")
             
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
@@ -690,8 +874,7 @@ install_system_packages() {
                 {
                     safe_sudo apt update -qq >/dev/null 2>&1
                 } &
-                show_spinner_completely_clean $! "Updating package cache"
-                wait $!
+                show_spinner_isolated $! "Updating package cache"
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ Package cache updated"
                 else
@@ -699,12 +882,7 @@ install_system_packages() {
                 fi
                 
                 print_info "→ Installing base packages..."
-                {
-                    safe_sudo apt install -y "${packages_to_install[@]}" >/dev/null 2>&1
-                } &
-                show_spinner_completely_clean $! "Installing base system packages"
-                wait $!
-                if [[ $? -eq 0 ]]; then
+                if install_packages_silent "${packages_to_install[@]}"; then
                     print_success "✓ Base packages installed"
                     install_success=true
                 else
@@ -712,14 +890,10 @@ install_system_packages() {
                     exit 1
                 fi
                 
-                print_info "→ Installing PyQt6 packages..."
-                if install_packages_with_spinner "${pyqt_packages[@]}"; then
-                    print_success "✓ ✓ PyQt6 system packages installed"
-                else
-                    print_warning "⚠ ⚠ PyQt6 system packages not available"
-                    print_info "ℹ ℹ Will install PyQt6 via pip instead"
-                    INSTALL_PYQT6_VIA_PIP=true
-                fi
+                # Skip PyQt6 system packages - always use pip instead
+                print_info "→ Skipping PyQt6 system packages (will use pip instead)..."
+                print_info "ℹ PyQt6 system packages often unavailable - using pip for reliability"
+                INSTALL_PYQT6_VIA_PIP=true
                 
                 if [[ "$AUDIO_CODECS" == "true" ]]; then
                     print_info "→ Installing additional audio codecs..."
@@ -727,12 +901,7 @@ install_system_packages() {
                         "gstreamer1.0-plugins-good" "gstreamer1.0-plugins-bad"
                         "gstreamer1.0-plugins-ugly" "gstreamer1.0-libav"
                     )
-                    {
-                        safe_sudo apt install -y "${codec_packages[@]}" >/dev/null 2>&1
-                    } &
-                    show_spinner_completely_clean $! "Installing audio codecs"
-                    wait $!
-                    if [[ $? -eq 0 ]]; then
+                    if install_packages_silent "${codec_packages[@]}"; then
                         print_success "✓ Audio codecs installed"
                     else
                         print_warning "⚠ Some audio codecs failed to install"
@@ -894,6 +1063,53 @@ install_system_packages() {
     fi
 }
 
+# Smart installation detection and handling
+handle_existing_installation() {
+    local install_dir="$HOME/.local/share/applergui"
+    
+    if [[ -d "$install_dir" && -f "$install_dir/.applergui_installed" ]]; then
+        show_section "📦 EXISTING INSTALLATION DETECTED"
+        print_info "📦 Existing ApplerGUI installation detected"
+        print_info "🔍 Location: $install_dir"
+        
+        if ask_yn "🔄 Update existing installation?" "y" "Update to latest version instead of fresh install"; then
+            print_info "🚀 Running update process..."
+            
+            # Use update script with matching terminal design
+            cd "$install_dir" || {
+                print_error "✗ Cannot access existing installation directory"
+                print_info "🗑️ Removing corrupted installation..."
+                rm -rf "$install_dir"
+                return 1
+            }
+            
+            # Run update script
+            if [[ -f "$install_dir/update.sh" ]]; then
+                bash "$install_dir/update.sh"
+                local update_exit_code=$?
+                
+                if [[ $update_exit_code -eq 0 ]]; then
+                    show_section "✅ UPDATE COMPLETE"
+                    print_success "✅ ApplerGUI updated successfully!"
+                    show_final_instructions
+                    exit 0
+                else
+                    print_error "✗ Update failed, continuing with fresh installation..."
+                    rm -rf "$install_dir"
+                fi
+            else
+                print_warning "⚠ Update script not found, continuing with fresh installation..."
+                rm -rf "$install_dir"
+            fi
+        else
+            print_info "🗑️ Removing existing installation for fresh install..."
+            rm -rf "$install_dir"
+        fi
+    fi
+    
+    return 0
+}
+
 # Enhanced installation directory management
 setup_installation_directory() {
     print_info "→ 📁 Setting up installation directory..."
@@ -911,6 +1127,9 @@ setup_installation_directory() {
     # Set global variable for other functions
     export INSTALL_DIR="$install_dir"
     export VENV_DIR="$install_dir/venv"
+    
+    # Create installation marker
+    touch "$install_dir/.applergui_installed"
     
     print_success "✓ Installation directory: $install_dir"
 }
@@ -935,12 +1154,12 @@ VENV_DIR="\$INSTALL_DIR/venv"
 # Function to launch with clean environment
 launch_clean() {
     cd "\$INSTALL_DIR" || {
-        echo "Error: Installation directory not found: \$INSTALL_DIR"
+        echo "✗ Error: Installation directory not found: \$INSTALL_DIR"
         exit 1
     }
     
     # Set clean GTK environment
-    export GTK_THEME="Adwaita"
+    export GTK_THEME="Adwaita"  
     export GDK_BACKEND=x11
     unset GTK_CSS_PATH
     unset GTK_THEME_PATH
@@ -948,59 +1167,156 @@ launch_clean() {
     # Set clean Qt environment
     export QT_STYLE_OVERRIDE=""
     export QT_QPA_PLATFORMTHEME=""
+    export QT_QPA_PLATFORM_PLUGIN_PATH=""
+    export QT_LOGGING_RULES="*.debug=false"
     
     # Activate virtual environment
     if [[ -f "\$VENV_DIR/bin/activate" ]]; then
         source "\$VENV_DIR/bin/activate"
     else
-        echo "Error: Virtual environment not found"
+        echo "✗ Error: Virtual environment not found"
         exit 1
     fi
     
-    # Run Qt connection check (silent unless there are issues)
-    if [[ -f "\$INSTALL_DIR/qt_connection_fix.py" ]]; then
-        python3 "\$INSTALL_DIR/qt_connection_fix.py" >/dev/null 2>&1 || {
-            echo "⚠ Warning: Qt connection issues detected, but continuing..."
-        }
-    fi
+    # Create logs directory
+    mkdir -p "\$INSTALL_DIR/logs"
     
     # Launch application with clean environment and error handling
     echo "🚀 Starting ApplerGUI..."
     
     # Try to launch the application
-    if python3 -m main 2>/dev/null; then
-        echo "✓ ApplerGUI launched successfully"
+    python3 -c "
+import sys
+import os
+sys.path.insert(0, '.')
+
+try:
+    from ui.main_window import MainWindow
+    from backend.config_manager import ConfigManager
+    from backend.device_controller import DeviceController  
+    from backend.pairing_manager import PairingManager
+    from PyQt6.QtWidgets import QApplication
+    
+    app = QApplication(sys.argv)
+    
+    # Setup backend components
+    config_manager = ConfigManager()
+    device_controller = DeviceController(config_manager)
+    pairing_manager = PairingManager(config_manager)
+    
+    # Create main window
+    window = MainWindow(config_manager, device_controller, pairing_manager)
+    window.show()
+    
+    print('✓ ApplerGUI launched successfully')
+    sys.exit(app.exec())
+    
+except Exception as e:
+    print(f'✗ Failed to start ApplerGUI: {e}')
+    print('💡 Run with --debug for detailed error information')
+    sys.exit(1)
+"
+}
+
+# Function to launch in debug mode
+launch_debug() {
+    cd "\$INSTALL_DIR" || {
+        echo "✗ Error: Installation directory not found: \$INSTALL_DIR"
+        exit 1
+    }
+    
+    # Activate virtual environment
+    if [[ -f "\$VENV_DIR/bin/activate" ]]; then
+        source "\$VENV_DIR/bin/activate"
     else
-        echo "✗ Failed to launch ApplerGUI"
-        echo "Trying alternative launch method..."
-        if python3 main.py 2>/dev/null; then
-            echo "✓ ApplerGUI launched with fallback method"
-        else
-            echo "✗ ApplerGUI launch failed"
-            echo "Please check the installation or run with --debug for more information"
-            exit 1
-        fi
+        echo "✗ Error: Virtual environment not found"
+        exit 1
     fi
+    
+    echo "🐛 Launching ApplerGUI in debug mode..."
+    echo "📊 Detailed error information will be displayed"
+    
+    # Set debug environment
+    export QT_LOGGING_RULES="*=true"
+    export PYTHONPATH="\$INSTALL_DIR:\$PYTHONPATH"
+    
+    # Run Qt connection check first
+    echo "🔧 Running Qt connection diagnostics..."
+    python3 qt_connection_fix.py
+    
+    echo ""
+    echo "🚀 Starting application with full debug output..."
+    
+    # Launch with full error output
+    python3 -c "
+import sys
+import traceback
+sys.path.insert(0, '.')
+
+try:
+    from ui.main_window import MainWindow
+    from backend.config_manager import ConfigManager
+    from backend.device_controller import DeviceController
+    from backend.pairing_manager import PairingManager
+    from PyQt6.QtWidgets import QApplication
+    
+    print('✓ All imports successful')
+    
+    app = QApplication(sys.argv)
+    print('✓ QApplication created')
+    
+    # Setup backend components
+    config_manager = ConfigManager()
+    print('✓ ConfigManager initialized')
+    
+    device_controller = DeviceController(config_manager)
+    print('✓ DeviceController initialized')
+    
+    pairing_manager = PairingManager(config_manager)
+    print('✓ PairingManager initialized')
+    
+    # Create main window
+    window = MainWindow(config_manager, device_controller, pairing_manager)
+    print('✓ MainWindow created')
+    
+    window.show()
+    print('✓ MainWindow shown')
+    
+    print('✅ ApplerGUI launched successfully in debug mode')
+    sys.exit(app.exec())
+    
+except Exception as e:
+    print(f'✗ Debug launch failed: {e}')
+    print('')
+    print('📊 Full traceback:')
+    traceback.print_exc()
+    sys.exit(1)
+"
 }
 
 # Handle command line arguments
 case "\$1" in
     --update)
         echo "🔄 Updating ApplerGUI..."
-        bash "\$INSTALL_DIR/update.sh" 2>/dev/null || {
-            echo "Update script not found, please reinstall"
+        if [[ -f "\$INSTALL_DIR/update.sh" ]]; then
+            bash "\$INSTALL_DIR/update.sh"
+        else
+            echo "✗ Update script not found, please reinstall"
             exit 1
-        }
+        fi
         ;;
     --version)
         cd "\$INSTALL_DIR"
         git describe --tags --always 2>/dev/null || echo "unknown"
         ;;
     --debug)
+        launch_debug
+        ;;
+    --test)
         cd "\$INSTALL_DIR" || exit 1
         source "\$VENV_DIR/bin/activate"
-        echo "🐛 Launching ApplerGUI in debug mode..."
-        python3 -m main
+        echo "🧪 Running application tests..."
+        python3 test_app.py
         ;;
     --help)
         echo "ApplerGUI - Apple TV & HomePod Control"
@@ -1009,6 +1325,7 @@ case "\$1" in
         echo "  applergui --update    Update to latest version"
         echo "  applergui --version   Show version information"
         echo "  applergui --debug     Launch with debug output"
+        echo "  applergui --test      Run application tests"
         echo "  applergui --help      Show this help"
         ;;
     *)
@@ -1028,6 +1345,42 @@ EOF
     fi
 }
 
+# Clone repository with complete output hiding and directory conflict handling
+clone_repository_silent() {
+    local repo_url="$1"
+    local install_dir="$2"
+    local temp_log="/tmp/applergui_git_$$.log"
+    
+    {
+        # Clone to temporary directory first to avoid conflicts
+        local temp_dir="${install_dir}_temp_$$"
+        git clone --depth 1 "$repo_url" "$temp_dir" >"$temp_log" 2>&1
+        
+        # Move contents to final directory
+        if [[ -d "$temp_dir" ]]; then
+            # Remove existing directory contents but keep the directory
+            find "$install_dir" -mindepth 1 -delete 2>/dev/null || true
+            
+            # Move new contents
+            mv "$temp_dir"/* "$install_dir"/ 2>>"$temp_log"
+            mv "$temp_dir"/.git "$install_dir"/ 2>>"$temp_log"
+            mv "$temp_dir"/.gitignore "$install_dir"/ 2>>"$temp_log" || true
+            
+            # Clean up temp directory
+            rm -rf "$temp_dir"
+        fi
+    } &
+    local git_pid=$!
+    
+    show_spinner_completely_clean $git_pid "Downloading ApplerGUI"
+    local exit_code=$?
+    
+    # Clean up temp log
+    rm -f "$temp_log"
+    
+    return $exit_code
+}
+
 setup_repository() {
     show_section "📥 DOWNLOADING APPLICATION"
     
@@ -1035,16 +1388,12 @@ setup_repository() {
     setup_installation_directory
     
     print_info "→ Cloning repository..."
-    {
-        git clone --depth 1 https://github.com/ZProLegend007/ApplerGUI.git "$INSTALL_DIR" 2>&1
-    } &
-    show_spinner_completely_clean $! "Downloading ApplerGUI"
     
-    wait $!
-    if [[ $? -eq 0 ]]; then
+    if clone_repository_silent "https://github.com/ZProLegend007/ApplerGUI.git" "$INSTALL_DIR"; then
         print_success "✓ Repository cloned successfully"
     else
         print_error "✗ Failed to clone repository"
+        print_info "💡 Check your internet connection and repository access"
         exit 1
     fi
 }
@@ -1126,31 +1475,19 @@ install_python_deps() {
         source "$VENV_DIR/bin/activate"
     fi
     
-    # Install PyQt6 via pip if system packages weren't available
-    if [[ "${INSTALL_PYQT6_VIA_PIP:-false}" == "true" ]]; then
-        print_info "→ → Installing PyQt6 via pip..."
-        {
-            pip install PyQt6 PyQt6-Qt6 2>&1
-        } &
-        show_spinner_completely_clean $! "Installing PyQt6 via pip"
-        
-        if [[ $? -eq 0 ]]; then
-            print_success "✓ ✓ PyQt6 installed via pip"
-        else
-            print_error "✗ ✗ Failed to install PyQt6 via pip"
-            exit 1
-        fi
+    # Always install PyQt6 via pip (skip system packages)
+    print_info "→ → Installing PyQt6 via pip..."
+    if install_python_gui_packages; then
+        print_success "✓ ✓ PyQt6 installed via pip"
+    else
+        print_error "✗ ✗ Failed to install PyQt6 via pip"
+        exit 1
     fi
     
     # Install application dependencies
     if [[ -f "$INSTALL_DIR/requirements.txt" ]]; then
         print_info "→ → Installing application dependencies..."
-        {
-            pip install -r "$INSTALL_DIR/requirements.txt" 2>&1
-        } &
-        show_spinner_completely_clean $! "Installing application dependencies"
-        
-        if [[ $? -eq 0 ]]; then
+        if install_python_packages_silent -r "$INSTALL_DIR/requirements.txt"; then
             print_success "✓ ✓ Application dependencies installed"
         else
             print_error "✗ ✗ Failed to install application dependencies"
@@ -1160,12 +1497,7 @@ install_python_deps() {
     
     # Install in development mode
     print_info "→ → Installing ApplerGUI..."
-    {
-        pip install -e "$INSTALL_DIR" 2>&1
-    } &
-    show_spinner_completely_clean $! "Installing ApplerGUI"
-    
-    if [[ $? -eq 0 ]]; then
+    if install_python_packages_silent -e "$INSTALL_DIR"; then
         print_success "✓ ✓ ApplerGUI installed successfully"
     else
         print_error "✗ ✗ Failed to install ApplerGUI"
@@ -1174,13 +1506,7 @@ install_python_deps() {
     
     if [ "$INSTALL_DEV_DEPS" = true ]; then
         print_info "→ → Installing development dependencies..."
-        {
-            pip install pytest black flake8 mypy 2>&1
-        } &
-        show_spinner_completely_clean $! "Installing development tools"
-        wait $!
-        
-        if [[ $? -eq 0 ]]; then
+        if install_python_packages_silent "pytest" "black" "flake8" "mypy"; then
             print_success "✓ ✓ Development dependencies installed"
         else
             print_warning "⚠ ⚠ Some development dependencies failed to install"
@@ -1433,6 +1759,29 @@ cleanup_on_error() {
     exit 1
 }
 
+# Show final instructions after update
+show_final_instructions() {
+    echo -e "${GREEN}"
+    cat << 'EOF'
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║  🎉 ApplerGUI Update Complete!                                              ║
+║                                                                              ║
+║  Your Apple TV and HomePod control center has been updated successfully.    ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}\n"
+    
+    print_success "✅ ApplerGUI is now up to date!"
+    
+    if [[ -f "$HOME/.local/bin/applergui" ]]; then
+        print_info "💡 Launch with: applergui"
+    else
+        print_info "💡 Launch with: $HOME/.local/share/applergui/venv/bin/python $HOME/.local/share/applergui/main.py"
+    fi
+}
+
 # Enhanced main installation flow
 main() {
     # Handle errors gracefully
@@ -1449,6 +1798,9 @@ main() {
     check_python
     
     show_waiting_dots "System detection complete" 2
+    
+    # Phase 1.5: Check for existing installation BEFORE asking preferences
+    handle_existing_installation
     
     # Phase 2: User Preferences (with proper clearing)
     ask_user_preferences
@@ -1469,9 +1821,9 @@ main() {
     install_system_packages
     refresh_sudo  # Refresh sudo credentials after potentially long package installation
     
-    # CRITICAL FIX: Setup repository BEFORE Python environment to ensure INSTALL_DIR is set
-    show_section "📥 DOWNLOADING APPLICATION"
+    # Setup repository and logging
     setup_repository
+    setup_logging
     
     show_section "🐍 SETTING UP PYTHON ENVIRONMENT"
     setup_virtual_environment
@@ -1517,7 +1869,7 @@ main() {
     show_success_message
     
     if ask_yn "🚀 Launch ApplerGUI now?" "y" "Start the application immediately to test the installation"; then
-        launch_application
+        launch_applergui_safe
     fi
     
     clear

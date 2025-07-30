@@ -171,6 +171,7 @@ class MainWindow(QMainWindow):
         self.device_controller.connection_failed.connect(self._on_connection_failed)
         
         # Pairing manager signals
+        self.pairing_manager.pairing_started.connect(self._on_pairing_started)
         self.pairing_manager.pairing_completed.connect(self._on_pairing_completed)
         self.pairing_manager.pairing_failed.connect(self._on_pairing_failed)
     
@@ -283,6 +284,11 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("Pairing completed successfully", 3000)
         # Try to connect to the newly paired device
         asyncio.create_task(self.device_controller.connect_device(device_id))
+    
+    @pyqtSlot(str)
+    def _on_pairing_started(self, device_id: str):
+        """Handle pairing started signal."""
+        self.status_bar.showMessage(f"Starting pairing with device {device_id}...", 3000)
     
     @pyqtSlot(str, str)
     def _on_pairing_failed(self, device_id: str, error: str):
