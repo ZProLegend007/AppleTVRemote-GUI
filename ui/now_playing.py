@@ -10,7 +10,14 @@ import qasync
 from typing import Optional
 import requests
 from io import BytesIO
-from PIL import Image, ImageQt
+
+# Handle PIL import gracefully
+try:
+    from PIL import Image, ImageQt
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("Warning: PIL/Pillow not available, album artwork will be disabled")
 
 from backend.device_controller import DeviceController
 
@@ -47,7 +54,7 @@ class ArtworkLabel(QLabel):
     
     def set_artwork(self, artwork_data: Optional[bytes]):
         """Set artwork from image data."""
-        if artwork_data:
+        if artwork_data and PIL_AVAILABLE:
             try:
                 # Load image with PIL
                 image = Image.open(BytesIO(artwork_data))
@@ -66,7 +73,7 @@ class ArtworkLabel(QLabel):
             except Exception as e:
                 print(f"Failed to load artwork: {e}")
         
-        # Fallback to placeholder
+        # Fallback to placeholder (either no data, no PIL, or error)
         self._set_placeholder()
 
 class PlaybackControlsWidget(QWidget):
