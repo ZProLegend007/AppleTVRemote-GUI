@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to verify AppleTVRemote-GUI components without running the GUI.
+Test script to verify ApplerGUI components without running the GUI.
 This script tests the import structure and basic functionality.
 """
 
@@ -219,7 +219,7 @@ def test_dependencies():
 
 def main():
     """Run all tests."""
-    print("AppleTVRemote-GUI Test Suite")
+    print("ApplerGUI Test Suite")
     print("=" * 40)
     
     tests = [
