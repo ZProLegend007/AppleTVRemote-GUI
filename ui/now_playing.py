@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap, QPainter, QBrush, QColor
 import asyncio
+import qasync
 from typing import Optional
 import requests
 from io import BytesIO
@@ -320,7 +321,7 @@ class NowPlayingWidget(QWidget):
         
         volume_down_btn = QPushButton("🔉")
         volume_down_btn.setFixedSize(40, 30)
-        volume_down_btn.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_volume_down()))
+        volume_down_btn.clicked.connect(self._on_volume_down_clicked)
         volume_layout.addWidget(volume_down_btn)
         
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
@@ -331,7 +332,7 @@ class NowPlayingWidget(QWidget):
         
         volume_up_btn = QPushButton("🔊")
         volume_up_btn.setFixedSize(40, 30)
-        volume_up_btn.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_volume_up()))
+        volume_up_btn.clicked.connect(self._on_volume_up_clicked)
         volume_layout.addWidget(volume_up_btn)
         
         info_controls_layout.addWidget(volume_group)
@@ -368,11 +369,11 @@ class NowPlayingWidget(QWidget):
         self.device_controller.now_playing_updated.connect(self._on_now_playing_updated)
         
         # Playback control signals
-        self.playback_controls.play_clicked.connect(lambda: asyncio.create_task(self.device_controller.play()))
-        self.playback_controls.pause_clicked.connect(lambda: asyncio.create_task(self.device_controller.pause()))
-        self.playback_controls.next_clicked.connect(lambda: asyncio.create_task(self.device_controller.next_track()))
-        self.playback_controls.previous_clicked.connect(lambda: asyncio.create_task(self.device_controller.previous_track()))
-        self.playback_controls.position_changed.connect(lambda pos: asyncio.create_task(self.device_controller.set_position(pos)))
+        self.playback_controls.play_clicked.connect(self._on_play_clicked)
+        self.playback_controls.pause_clicked.connect(self._on_pause_clicked)
+        self.playback_controls.next_clicked.connect(self._on_next_clicked)
+        self.playback_controls.previous_clicked.connect(self._on_previous_clicked)
+        self.playback_controls.position_changed.connect(self._on_position_changed)
     
     def _update_ui_state(self):
         """Update UI state based on device connection."""
@@ -407,10 +408,11 @@ class NowPlayingWidget(QWidget):
         self.playback_controls.set_progress(0, 0)
         self.playback_controls.set_playing_state(False)
     
-    def _update_artwork(self):
+    @qasync.asyncSlot()
+    async def _update_artwork(self):
         """Update artwork from current device."""
         if self.device_controller.get_current_device():
-            asyncio.create_task(self._load_artwork())
+            await self._load_artwork()
     
     async def _load_artwork(self):
         """Load artwork asynchronously."""
@@ -462,8 +464,44 @@ class NowPlayingWidget(QWidget):
         shuffle_mode = now_playing_info.get('shuffle', 'off').title()
         self.shuffle_button.setText(f"🔀 Shuffle: {shuffle_mode}")
     
-    def _on_volume_changed(self, value: int):
+    @qasync.asyncSlot()
+    async def _on_play_clicked(self):
+        """Handle play button click."""
+        await self.device_controller.play()
+    
+    @qasync.asyncSlot()
+    async def _on_pause_clicked(self):
+        """Handle pause button click."""
+        await self.device_controller.pause()
+    
+    @qasync.asyncSlot()
+    async def _on_next_clicked(self):
+        """Handle next button click."""
+        await self.device_controller.next_track()
+    
+    @qasync.asyncSlot()
+    async def _on_previous_clicked(self):
+        """Handle previous button click."""
+        await self.device_controller.previous_track()
+    
+    @qasync.asyncSlot(float)
+    async def _on_position_changed(self, position: float):
+        """Handle position change."""
+        await self.device_controller.set_position(position)
+    
+    @qasync.asyncSlot()
+    async def _on_volume_up_clicked(self):
+        """Handle volume up button click."""
+        await self.device_controller.remote_volume_up()
+    
+    @qasync.asyncSlot()
+    async def _on_volume_down_clicked(self):
+        """Handle volume down button click."""
+        await self.device_controller.remote_volume_down()
+    
+    @qasync.asyncSlot(int)
+    async def _on_volume_changed(self, value: int):
         """Handle volume slider change."""
         # Convert to 0-1 range and set volume
         volume = value / 100.0
-        asyncio.create_task(self.device_controller.set_volume(volume))
+        await self.device_controller.set_volume(volume)

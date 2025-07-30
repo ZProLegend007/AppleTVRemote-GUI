@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut
 import asyncio
+import qasync
 
 from backend.device_controller import DeviceController
 
@@ -59,38 +60,38 @@ class DirectionalPad(QWidget):
         
         # Up button
         self.up_button = CircularButton("▲", 50)
-        self.up_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_up()))
+        self.up_button.clicked.connect(self._on_up_clicked)
         layout.addWidget(self.up_button, 0, 1, Qt.AlignmentFlag.AlignCenter)
         
         # Left button
         self.left_button = CircularButton("◀", 50)
-        self.left_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_left()))
+        self.left_button.clicked.connect(self._on_left_clicked)
         layout.addWidget(self.left_button, 1, 0, Qt.AlignmentFlag.AlignCenter)
         
         # Select button (center)
         self.select_button = CircularButton("OK", 60)
-        self.select_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_select()))
+        self.select_button.clicked.connect(self._on_select_clicked)
         layout.addWidget(self.select_button, 1, 1, Qt.AlignmentFlag.AlignCenter)
         
         # Right button
         self.right_button = CircularButton("▶", 50)
-        self.right_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_right()))
+        self.right_button.clicked.connect(self._on_right_clicked)
         layout.addWidget(self.right_button, 1, 2, Qt.AlignmentFlag.AlignCenter)
         
         # Down button
         self.down_button = CircularButton("▼", 50)
-        self.down_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_down()))
+        self.down_button.clicked.connect(self._on_down_clicked)
         layout.addWidget(self.down_button, 2, 1, Qt.AlignmentFlag.AlignCenter)
     
     def _setup_shortcuts(self):
         """Set up keyboard shortcuts for directional pad."""
         # Arrow keys
-        QShortcut(QKeySequence("Up"), self, lambda: asyncio.create_task(self.device_controller.remote_up()))
-        QShortcut(QKeySequence("Down"), self, lambda: asyncio.create_task(self.device_controller.remote_down()))
-        QShortcut(QKeySequence("Left"), self, lambda: asyncio.create_task(self.device_controller.remote_left()))
-        QShortcut(QKeySequence("Right"), self, lambda: asyncio.create_task(self.device_controller.remote_right()))
-        QShortcut(QKeySequence("Return"), self, lambda: asyncio.create_task(self.device_controller.remote_select()))
-        QShortcut(QKeySequence("Enter"), self, lambda: asyncio.create_task(self.device_controller.remote_select()))
+        QShortcut(QKeySequence("Up"), self, self._on_up_clicked)
+        QShortcut(QKeySequence("Down"), self, self._on_down_clicked)
+        QShortcut(QKeySequence("Left"), self, self._on_left_clicked)
+        QShortcut(QKeySequence("Right"), self, self._on_right_clicked)
+        QShortcut(QKeySequence("Return"), self, self._on_select_clicked)
+        QShortcut(QKeySequence("Enter"), self, self._on_select_clicked)
     
     def set_enabled(self, enabled: bool):
         """Enable or disable all directional pad buttons."""
@@ -99,6 +100,31 @@ class DirectionalPad(QWidget):
         self.left_button.setEnabled(enabled)
         self.right_button.setEnabled(enabled)
         self.select_button.setEnabled(enabled)
+    
+    @qasync.asyncSlot()
+    async def _on_up_clicked(self):
+        """Handle up button click."""
+        await self.device_controller.remote_up()
+    
+    @qasync.asyncSlot()
+    async def _on_down_clicked(self):
+        """Handle down button click."""
+        await self.device_controller.remote_down()
+    
+    @qasync.asyncSlot()
+    async def _on_left_clicked(self):
+        """Handle left button click."""
+        await self.device_controller.remote_left()
+    
+    @qasync.asyncSlot()
+    async def _on_right_clicked(self):
+        """Handle right button click."""
+        await self.device_controller.remote_right()
+    
+    @qasync.asyncSlot()
+    async def _on_select_clicked(self):
+        """Handle select button click."""
+        await self.device_controller.remote_select()
 
 class RemoteControlWidget(QWidget):
     """Widget for Apple TV remote control interface."""
@@ -164,18 +190,18 @@ class RemoteControlWidget(QWidget):
         
         self.menu_button = QPushButton("Menu")
         self.menu_button.setFixedSize(80, 40)
-        self.menu_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_menu()))
+        self.menu_button.clicked.connect(self._on_menu_clicked)
         system_layout.addWidget(self.menu_button, 0, 0)
         
         self.home_button = QPushButton("Home")
         self.home_button.setFixedSize(80, 40)
-        self.home_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_home()))
+        self.home_button.clicked.connect(self._on_home_clicked)
         system_layout.addWidget(self.home_button, 0, 1)
         
         # Play/Pause button
         self.play_pause_button = QPushButton("Play/Pause")
         self.play_pause_button.setFixedSize(160, 40)
-        self.play_pause_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_play_pause()))
+        self.play_pause_button.clicked.connect(self._on_play_pause_clicked)
         system_layout.addWidget(self.play_pause_button, 1, 0, 1, 2)
         
         right_column.addWidget(system_group)
@@ -187,11 +213,11 @@ class RemoteControlWidget(QWidget):
         volume_buttons_layout = QHBoxLayout()
         
         self.volume_down_button = QPushButton("Vol -")
-        self.volume_down_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_volume_down()))
+        self.volume_down_button.clicked.connect(self._on_volume_down_clicked)
         volume_buttons_layout.addWidget(self.volume_down_button)
         
         self.volume_up_button = QPushButton("Vol +")
-        self.volume_up_button.clicked.connect(lambda: asyncio.create_task(self.device_controller.remote_volume_up()))
+        self.volume_up_button.clicked.connect(self._on_volume_up_clicked)
         volume_buttons_layout.addWidget(self.volume_up_button)
         
         volume_layout.addLayout(volume_buttons_layout)
@@ -254,14 +280,14 @@ class RemoteControlWidget(QWidget):
     def _setup_shortcuts(self):
         """Set up keyboard shortcuts."""
         # System controls
-        QShortcut(QKeySequence("Space"), self, lambda: asyncio.create_task(self.device_controller.remote_play_pause()))
-        QShortcut(QKeySequence("M"), self, lambda: asyncio.create_task(self.device_controller.remote_menu()))
-        QShortcut(QKeySequence("H"), self, lambda: asyncio.create_task(self.device_controller.remote_home()))
+        QShortcut(QKeySequence("Space"), self, self._on_play_pause_clicked)
+        QShortcut(QKeySequence("M"), self, self._on_menu_clicked)
+        QShortcut(QKeySequence("H"), self, self._on_home_clicked)
         
         # Volume controls
-        QShortcut(QKeySequence("+"), self, lambda: asyncio.create_task(self.device_controller.remote_volume_up()))
-        QShortcut(QKeySequence("-"), self, lambda: asyncio.create_task(self.device_controller.remote_volume_down()))
-        QShortcut(QKeySequence("="), self, lambda: asyncio.create_task(self.device_controller.remote_volume_up()))  # For keyboards without dedicated +
+        QShortcut(QKeySequence("+"), self, self._on_volume_up_clicked)
+        QShortcut(QKeySequence("-"), self, self._on_volume_down_clicked)
+        QShortcut(QKeySequence("="), self, self._on_volume_up_clicked)  # For keyboards without dedicated +
     
     def _update_ui_state(self):
         """Update UI state based on device connection."""
@@ -299,3 +325,28 @@ class RemoteControlWidget(QWidget):
     def set_volume_display(self, volume: int):
         """Set the volume slider display value."""
         self.volume_slider.setValue(volume)
+    
+    @qasync.asyncSlot()
+    async def _on_menu_clicked(self):
+        """Handle menu button click."""
+        await self.device_controller.remote_menu()
+    
+    @qasync.asyncSlot()
+    async def _on_home_clicked(self):
+        """Handle home button click."""
+        await self.device_controller.remote_home()
+    
+    @qasync.asyncSlot()
+    async def _on_play_pause_clicked(self):
+        """Handle play/pause button click."""
+        await self.device_controller.remote_play_pause()
+    
+    @qasync.asyncSlot()
+    async def _on_volume_up_clicked(self):
+        """Handle volume up button click."""
+        await self.device_controller.remote_volume_up()
+    
+    @qasync.asyncSlot()
+    async def _on_volume_down_clicked(self):
+        """Handle volume down button click."""
+        await self.device_controller.remote_volume_down()
