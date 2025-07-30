@@ -85,13 +85,14 @@ class ApplerGUIApp:
         """Set up signal handlers for graceful shutdown."""
         def signal_handler(sig, frame):
             print("\nShutting down gracefully...")
-            self.cleanup()
+            # Schedule cleanup to run in the event loop
+            asyncio.create_task(self.cleanup())
             sys.exit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
     
-    def cleanup(self):
+    async def cleanup(self):
         """Clean up resources before exit."""
         if self.main_window:
             # Save window geometry
@@ -105,7 +106,7 @@ class ApplerGUIApp:
         if self.device_controller:
             connected_devices = list(self.device_controller._connected_devices.keys())
             for device_id in connected_devices:
-                asyncio.create_task(self.device_controller.disconnect_device(device_id))
+                await self.device_controller.disconnect_device(device_id)
     
     async def run(self):
         """Run the application."""
@@ -131,7 +132,7 @@ class ApplerGUIApp:
         except Exception as e:
             print(f"Application error: {e}")
         finally:
-            self.cleanup()
+            await self.cleanup()
 
 def main():
     """Main entry point."""

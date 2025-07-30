@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QFont
 import asyncio
+import qasync
 
 from backend.config_manager import ConfigManager
 from backend.device_controller import DeviceController
@@ -122,19 +123,21 @@ class DeviceListItem(QWidget):
             self.connect_button.setEnabled(True)
             self.pair_button.setEnabled(True)
     
-    def _connect_device(self):
+    @qasync.asyncSlot()
+    async def _connect_device(self):
         """Connect or disconnect the device."""
         connected_devices = self.device_controller.get_connected_devices()
         is_connected = self.device_id in connected_devices
         
         if is_connected:
-            asyncio.create_task(self.device_controller.disconnect_device(self.device_id))
+            await self.device_controller.disconnect_device(self.device_id)
         else:
-            asyncio.create_task(self.device_controller.connect_device(self.device_id))
+            await self.device_controller.connect_device(self.device_id)
     
-    def _pair_device(self):
+    @qasync.asyncSlot()
+    async def _pair_device(self):
         """Start pairing process for the device."""
-        asyncio.create_task(self.pairing_manager.start_pairing(self.device_id, self.device_info))
+        await self.pairing_manager.start_pairing(self.device_id, self.device_info)
 
 class DeviceManagerWidget(QWidget):
     """Widget for managing device discovery and connections."""
@@ -245,14 +248,23 @@ class DeviceManagerWidget(QWidget):
         devices_list = list(known_devices.values())
         self._populate_device_list(devices_list)
     
-    def _discover_devices(self):
+    @qasync.asyncSlot()
+    async def _discover_devices(self):
         """Start device discovery."""
-        timeout = self.config_manager.get('discovery_timeout', 10)
-        asyncio.create_task(self.device_controller.discover_devices(timeout))
+        try:
+            self._set_discovery_state(True)
+            timeout = self.config_manager.get('discovery_timeout', 10)
+            await self.device_controller.discover_devices(timeout)
+        except Exception as e:
+            print(f"Device discovery failed: {e}")
+            QMessageBox.warning(self, "Discovery Failed", f"Device discovery failed: {e}")
+        finally:
+            self._set_discovery_state(False)
     
-    def _refresh_devices(self):
+    @qasync.asyncSlot()
+    async def _refresh_devices(self):
         """Refresh the device list."""
-        self._load_known_devices()
+        await self._discover_devices()
     
     def _populate_device_list(self, devices: list):
         """Populate the device list with discovered devices."""
@@ -290,6 +302,22 @@ class DeviceManagerWidget(QWidget):
         # Update device count
         count = self.device_list.count()
         self.device_count_label.setText(f"{count} device{'s' if count != 1 else ''} found")
+    
+    def _set_discovery_state(self, discovering: bool):
+        """Set the discovery UI state."""
+        if discovering:
+            self.discovery_progress.setVisible(True)
+            self.discovery_progress.setRange(0, 0)  # Indeterminate progress
+            self.discover_button.setEnabled(False)
+            self.refresh_button.setEnabled(False)
+            self.discovery_status.setText("Discovering devices...")
+            self.discovery_status.setStyleSheet("color: #00aaff; font-size: 10px;")
+        else:
+            self.discovery_progress.setVisible(False)
+            self.discover_button.setEnabled(True)
+            self.refresh_button.setEnabled(True)
+            self.discovery_status.setText("Ready to discover devices")
+            self.discovery_status.setStyleSheet("color: #888888; font-size: 10px;")
     
     @pyqtSlot()
     def _on_discovery_started(self):

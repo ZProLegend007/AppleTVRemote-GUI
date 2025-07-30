@@ -3,6 +3,7 @@
 import asyncio
 from typing import Optional, Dict, Any, List
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
+import qasync
 import pyatv
 from pyatv.interface import AppleTV, Playing
 from backend.config_manager import ConfigManager
@@ -274,10 +275,11 @@ class DeviceController(QObject):
             # Convert to percentage for pyatv
             await atv.remote_control.set_volume(volume * 100)
     
-    def _update_now_playing(self):
+    @qasync.asyncSlot()
+    async def _update_now_playing(self):
         """Update now playing information."""
         if self._current_device_id:
-            asyncio.create_task(self._async_update_now_playing())
+            await self._async_update_now_playing()
     
     async def _async_update_now_playing(self):
         """Async method to update now playing info."""
