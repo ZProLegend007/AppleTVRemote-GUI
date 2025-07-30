@@ -4,9 +4,19 @@ ApplerGUI - A modern Linux GUI application for controlling Apple TV and HomePod 
 """
 
 import sys
+import os
 import asyncio
 import signal
 from pathlib import Path
+
+# Suppress Qt verbose logging for clean debug output
+os.environ['QT_LOGGING_RULES'] = (
+    'qt.text.font.*=false;'
+    'qt.widgets.*=false;'
+    'qt.core.*=false;'
+    'qt.qpa.*=false;'
+    'qt.accessibility.*=false'
+)
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QCoreApplication

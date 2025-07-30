@@ -20,7 +20,9 @@ class DeviceListItem(QWidget):
         self.device_info = device_info
         self.device_controller = device_controller
         self.pairing_manager = pairing_manager
-        self.device_id = device_info['id']
+        
+        # Safely get device ID with fallbacks
+        self.device_id = device_info.get('id') or device_info.get('name') or 'unknown_device'
         
         self._setup_ui()
         self._update_connection_status()
@@ -256,24 +258,37 @@ class DeviceManagerWidget(QWidget):
         """Populate the device list with discovered devices."""
         self.device_list.clear()
         
-        for device_info in devices:
-            # Create custom widget for device
-            device_widget = DeviceListItem(
-                device_info, 
-                self.device_controller, 
-                self.pairing_manager
-            )
+        try:
+            for device_info in devices:
+                # Validate device_info has required structure
+                if not isinstance(device_info, dict):
+                    continue
+                    
+                # Ensure minimum required fields exist (at least name or id)
+                if not device_info.get('name') and not device_info.get('id'):
+                    continue
+                
+                # Create custom widget for device
+                device_widget = DeviceListItem(
+                    device_info, 
+                    self.device_controller, 
+                    self.pairing_manager
+                )
+                
+                # Create list item
+                item = QListWidgetItem()
+                item.setSizeHint(device_widget.sizeHint())
+                
+                # Add to list
+                self.device_list.addItem(item)
+                self.device_list.setItemWidget(item, device_widget)
             
-            # Create list item
-            item = QListWidgetItem()
-            item.setSizeHint(device_widget.sizeHint())
-            
-            # Add to list
-            self.device_list.addItem(item)
-            self.device_list.setItemWidget(item, device_widget)
+        except Exception as e:
+            print(f"Error populating device list: {e}")
+            # Continue to show device count even if some devices failed to load
         
         # Update device count
-        count = len(devices)
+        count = self.device_list.count()
         self.device_count_label.setText(f"{count} device{'s' if count != 1 else ''} found")
     
     @pyqtSlot()
