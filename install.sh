@@ -29,6 +29,49 @@ print_section() {
     echo -e "${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 }
 
+# Clean section display with proper clearing
+show_section() {
+    local title="$1"
+    clear
+    echo -e "${PURPLE}"
+    cat << EOF
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║   🍎 AppleTVRemote-GUI Professional Installer                              ║
+║                                                                            ║
+║   Modern Linux GUI for Apple TV & HomePod Control                         ║
+║                                                                            ║
+║   ✨ Automated Installation with Smart Dependency Management               ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}\n"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE} $title${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+}
+
+# Section header for prompts
+show_section_header() {
+    local title="$1"
+    echo -e "${PURPLE}"
+    cat << EOF
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║   🍎 AppleTVRemote-GUI Professional Installer                              ║
+║                                                                            ║
+║   Modern Linux GUI for Apple TV & HomePod Control                         ║
+║                                                                            ║
+║   ✨ Automated Installation with Smart Dependency Management               ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}\n"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE} $title${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+}
+
 # Clear terminal and show fancy banner
 clear_and_banner() {
     clear
@@ -74,19 +117,48 @@ DEV_TOOLS=false
 SAMPLE_CONFIG=false
 EXTRA_THEMES=false
 
-# Progress indicator
-show_progress() {
+# Spinner animation for long operations
+show_spinner() {
     local pid=$1
-    local delay=0.1
-    local spinstr='|/-\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
+    local message="$2"
+    local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+    local i=0
+    
+    while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) %8 ))
+        echo -ne "\r${BLUE}${spin:$i:1}${NC} $message"
+        sleep .1
     done
-    printf "    \b\b\b\b"
+    echo -ne "\r✓ $message\n"
+}
+
+# Progress bar for installations
+show_progress() {
+    local current=$1
+    local total=$2
+    local message="$3"
+    local percent=$((current * 100 / total))
+    local filled=$((percent / 5))
+    local empty=$((20 - filled))
+    
+    printf "\r${BLUE}%s${NC} [" "$message"
+    printf "%*s" $filled | tr ' ' '█'
+    printf "%*s" $empty | tr ' ' '░'
+    printf "] %d%%" $percent
+}
+
+# Animated dots for waiting states
+show_waiting_dots() {
+    local message="$1"
+    local duration="${2:-3}"
+    local dots=""
+    
+    for i in $(seq 1 $duration); do
+        dots+="."
+        echo -ne "\r${BLUE}$message$dots${NC}"
+        sleep 1
+    done
+    echo
 }
 
 # Smart sudo detection and management
@@ -247,7 +319,7 @@ check_python() {
 
 # Enhanced interactive prompts for installation preferences  
 ask_user_preferences() {
-    print_section "⚙️ INSTALLATION PREFERENCES"
+    show_section "⚙️ INSTALLATION PREFERENCES"
     echo -e "${GRAY}Configure your AppleTVRemote-GUI installation with the options below.${NC}"
     echo -e "${GRAY}Each option includes an explanation to help you decide.${NC}\n"
     
@@ -308,7 +380,9 @@ ask_user_preferences() {
         DOWNLOAD_THEMES=true
     fi
     
+    clear
     echo -e "\n${GREEN}✓ Preferences configured successfully${NC}"
+    show_waiting_dots "Processing your preferences" 2
 }
 
 # Launch application after installation
@@ -331,11 +405,14 @@ launch_application() {
 }
 ask_yn() {
     local prompt="$1"
-    local default="$2"
+    local default="$2" 
     local explanation="$3"
     local response
     
     while true; do
+        clear
+        show_section_header "⚙️ INSTALLATION PREFERENCES"
+        
         echo -e "\n${BLUE}┌─────────────────────────────────────────────────────────────────────────┐${NC}"
         echo -e "${BLUE}│${NC} $prompt"
         [[ -n "$explanation" ]] && echo -e "${BLUE}│${NC} ${GRAY}$explanation${NC}"
@@ -347,27 +424,36 @@ ask_yn() {
             echo -en "${YELLOW}[y/N]${NC} (default: No): "
         fi
         
-        read -r response
-        
-        # Handle empty input (use default)
-        if [[ -z "$response" ]]; then
-            response="$default"
-        fi
-        
-        case "${response,,}" in
-            y|yes|true|1)
+        # CRITICAL: Actually wait for user input with timeout to prevent hanging
+        if read -r -t 60 response; then
+            # Handle empty input (use default)
+            if [[ -z "$response" ]]; then
+                response="$default"
+            fi
+            
+            case "${response,,}" in
+                y|yes|true|1)
+                    return 0
+                    ;;
+                n|no|false|0)
+                    return 1
+                    ;;
+                *)
+                    echo -e "\n${RED}⚠ Please enter 'y' for yes or 'n' for no${NC}"
+                    echo -e "Press Enter to continue..."
+                    read -r
+                    continue
+                    ;;
+            esac
+        else
+            # Timeout occurred, use default
+            echo -e "\n${YELLOW}⚠ Input timeout, using default: $default${NC}"
+            if [[ "$default" == "y" ]]; then
                 return 0
-                ;;
-            n|no|false|0)
+            else
                 return 1
-                ;;
-            *)
-                print_warning "⚠ Please enter 'y' for yes or 'n' for no (or press Enter for default)"
-                echo -e "${GRAY}   Valid responses: y, yes, n, no, or Enter for default${NC}"
-                sleep 1
-                continue
-                ;;
-        esac
+            fi
+        fi
     done
 }
 
@@ -457,14 +543,24 @@ install_system_packages() {
             
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
                 print_info "→ Updating package cache..."
-                if safe_sudo apt update -qq; then
+                {
+                    safe_sudo apt update -qq 2>&1
+                } &
+                show_spinner $! "Updating package cache"
+                wait $!
+                if [[ $? -eq 0 ]]; then
                     print_success "✓ Package cache updated"
                 else
                     print_warning "⚠ Failed to update package cache, continuing anyway"
                 fi
                 
                 print_info "→ Installing base packages..."
-                if safe_sudo apt install -y "${packages_to_install[@]}"; then
+                {
+                    safe_sudo apt install -y "${packages_to_install[@]}" 2>&1
+                } &
+                show_spinner $! "Installing base system packages"
+                wait $!
+                if [[ $? -eq 0 ]]; then
                     print_success "✓ Base packages installed"
                     install_success=true
                 else
@@ -473,7 +569,12 @@ install_system_packages() {
                 fi
                 
                 print_info "→ Installing PyQt6 packages..."
-                if safe_sudo apt install -y "${pyqt_packages[@]}"; then
+                {
+                    safe_sudo apt install -y "${pyqt_packages[@]}" 2>&1
+                } &
+                show_spinner $! "Installing PyQt6 system packages"
+                wait $!
+                if [[ $? -eq 0 ]]; then
                     print_success "✓ PyQt6 system packages installed"
                 else
                     print_warning "⚠ PyQt6 system packages not available, will install via pip"
@@ -485,7 +586,12 @@ install_system_packages() {
                         "gstreamer1.0-plugins-good" "gstreamer1.0-plugins-bad"
                         "gstreamer1.0-plugins-ugly" "gstreamer1.0-libav"
                     )
-                    if safe_sudo apt install -y "${codec_packages[@]}"; then
+                    {
+                        safe_sudo apt install -y "${codec_packages[@]}" 2>&1
+                    } &
+                    show_spinner $! "Installing audio codecs"
+                    wait $!
+                    if [[ $? -eq 0 ]]; then
                         print_success "✓ Audio codecs installed"
                     else
                         print_warning "⚠ Some audio codecs failed to install"
@@ -511,7 +617,12 @@ install_system_packages() {
             
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
                 print_info "→ Installing packages with DNF..."
-                if safe_sudo dnf install -y "${packages_to_install[@]}" "${pyqt_packages[@]}"; then
+                {
+                    safe_sudo dnf install -y "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
+                } &
+                show_spinner $! "Installing packages with DNF"
+                wait $!
+                if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
                     install_success=true
                 else
@@ -521,7 +632,11 @@ install_system_packages() {
                 
                 if [[ "$AUDIO_CODECS" == "true" ]]; then
                     print_info "→ Installing audio codecs..."
-                    safe_sudo dnf install -y gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free
+                    {
+                        safe_sudo dnf install -y gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free 2>&1
+                    } &
+                    show_spinner $! "Installing audio codecs"
+                    wait $!
                 fi
             else
                 print_error "✗ System packages require sudo access"
@@ -540,10 +655,19 @@ install_system_packages() {
             
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
                 print_info "→ Updating package database..."
-                safe_sudo pacman -Sy
+                {
+                    safe_sudo pacman -Sy 2>&1
+                } &
+                show_spinner $! "Updating package database"
+                wait $!
                 
                 print_info "→ Installing packages with Pacman..."
-                if safe_sudo pacman -S --noconfirm "${packages_to_install[@]}" "${pyqt_packages[@]}"; then
+                {
+                    safe_sudo pacman -S --noconfirm "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
+                } &
+                show_spinner $! "Installing packages with Pacman"
+                wait $!
+                if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
                     install_success=true
                 else
@@ -552,7 +676,11 @@ install_system_packages() {
                 fi
                 
                 if [[ "$AUDIO_CODECS" == "true" ]]; then
-                    safe_sudo pacman -S --noconfirm gst-plugins-good gst-plugins-bad gst-plugins-ugly
+                    {
+                        safe_sudo pacman -S --noconfirm gst-plugins-good gst-plugins-bad gst-plugins-ugly 2>&1
+                    } &
+                    show_spinner $! "Installing audio codecs"
+                    wait $!
                 fi
             else
                 print_error "✗ System packages require sudo access"
@@ -566,16 +694,32 @@ install_system_packages() {
                 print_info "→ Attempting to install basic Python dependencies..."
                 case "$PACKAGE_MANAGER" in
                     "apt")
-                        safe_sudo apt install -y python3 python3-pip python3-venv git curl
+                        {
+                            safe_sudo apt install -y python3 python3-pip python3-venv git curl 2>&1
+                        } &
+                        show_spinner $! "Installing basic dependencies"
+                        wait $!
                         ;;
                     "dnf")
-                        safe_sudo dnf install -y python3 python3-pip git curl
+                        {
+                            safe_sudo dnf install -y python3 python3-pip git curl 2>&1
+                        } &
+                        show_spinner $! "Installing basic dependencies"
+                        wait $!
                         ;;
                     "yum")
-                        safe_sudo yum install -y python3 python3-pip git curl
+                        {
+                            safe_sudo yum install -y python3 python3-pip git curl 2>&1
+                        } &
+                        show_spinner $! "Installing basic dependencies"
+                        wait $!
                         ;;
                     "zypper")
-                        safe_sudo zypper install -y python3 python3-pip git curl
+                        {
+                            safe_sudo zypper install -y python3 python3-pip git curl 2>&1
+                        } &
+                        show_spinner $! "Installing basic dependencies"
+                        wait $!
                         ;;
                 esac
                 install_success=true
@@ -594,86 +738,151 @@ install_system_packages() {
     fi
 }
 
-# Clone repository if not already present
-clone_repository() {
-    if [ ! -f "main.py" ]; then
-        print_header "\n📥 Cloning Repository"
-        print_info "Cloning AppleTVRemote-GUI repository..."
-        git clone https://github.com/ZProLegend007/AppleTVRemote-GUI.git .
-        print_success "Repository cloned successfully"
+# Proper directory and repository management
+setup_repository() {
+    show_section "📥 SETTING UP APPLICATION"
+    
+    # Create proper installation directory
+    local install_dir
+    if [ "$USER_INSTALL" = true ]; then
+        install_dir="$HOME/.local/share/appletv-remote-gui"
     else
-        print_info "Repository already present, skipping clone"
+        install_dir="/opt/appletv-remote-gui"
+    fi
+    
+    print_info "→ Creating installation directory..."
+    
+    # Handle existing installations
+    if [[ -d "$install_dir" ]]; then
+        print_warning "⚠ Existing installation found"
+        if ask_yn "Remove existing installation?" "y" "This will delete the current installation"; then
+            if [ "$USER_INSTALL" = true ]; then
+                rm -rf "$install_dir"
+            else
+                sudo rm -rf "$install_dir"
+            fi
+            print_success "✓ Previous installation removed"
+        else
+            print_error "✗ Cannot proceed with existing installation"
+            exit 1
+        fi
+    fi
+    
+    # Create directory structure
+    if [ "$USER_INSTALL" = true ]; then
+        mkdir -p "$install_dir"
+    else
+        sudo mkdir -p "$install_dir"
+    fi
+    
+    print_info "→ Cloning repository..."
+    {
+        git clone --depth 1 https://github.com/ZProLegend007/AppleTVRemote-GUI.git "$install_dir" 2>&1
+    } &
+    show_spinner $! "Downloading AppleTVRemote-GUI"
+    
+    wait $!
+    if [[ $? -eq 0 ]]; then
+        print_success "✓ Repository cloned successfully"
+        INSTALL_DIR="$install_dir"
+    else
+        print_error "✗ Failed to clone repository"
+        exit 1
     fi
 }
 
 # Set up Python virtual environment
 setup_virtual_environment() {
-    print_header "\n🐍 Setting up Python Virtual Environment"
+    print_info "🐍 Creating Python virtual environment..."
     
     if [ "$USER_INSTALL" = true ]; then
-        INSTALL_DIR="$HOME/.local/share/appletv-remote-gui"
         VENV_DIR="$INSTALL_DIR/venv"
     else
-        INSTALL_DIR="/opt/appletv-remote-gui"
         VENV_DIR="$INSTALL_DIR/venv"
     fi
     
-    print_info "Creating installation directory: $INSTALL_DIR"
-    if [ "$USER_INSTALL" = true ]; then
-        mkdir -p "$INSTALL_DIR"
-    else
-        sudo mkdir -p "$INSTALL_DIR"
-    fi
+    print_info "→ Creating virtual environment..."
+    {
+        if [ "$USER_INSTALL" = true ]; then
+            python3 -m venv "$VENV_DIR" 2>&1
+        else
+            sudo python3 -m venv "$VENV_DIR" 2>&1
+            sudo chown -R $USER:$USER "$VENV_DIR" 2>&1
+        fi
+    } &
+    show_spinner $! "Creating Python virtual environment"
+    wait $!
     
-    print_info "Creating virtual environment..."
-    if [ "$USER_INSTALL" = true ]; then
-        python3 -m venv "$VENV_DIR"
+    if [[ $? -eq 0 ]]; then
+        print_success "✓ Virtual environment created at $VENV_DIR"
     else
-        sudo python3 -m venv "$VENV_DIR"
-        sudo chown -R $USER:$USER "$VENV_DIR"
+        print_error "✗ Failed to create virtual environment"
+        exit 1
     fi
-    
-    print_success "Virtual environment created at $VENV_DIR"
 }
 
 # Install Python dependencies
 install_python_deps() {
-    print_header "\n📚 Installing Python Dependencies"
+    print_info "📚 Installing Python dependencies..."
     
-    print_info "Activating virtual environment..."
+    print_info "→ Activating virtual environment..."
     source "$VENV_DIR/bin/activate"
     
-    print_info "Upgrading pip..."
-    pip install --upgrade pip
+    print_info "→ Upgrading pip..."
+    {
+        pip install --upgrade pip 2>&1
+    } &
+    show_spinner $! "Upgrading pip to latest version"
+    wait $!
     
-    print_info "Installing required packages..."
-    pip install -r requirements.txt
+    print_info "→ Installing required packages..."
+    {
+        pip install -r "$INSTALL_DIR/requirements.txt" 2>&1
+    } &
+    show_spinner $! "Installing Python requirements"
+    wait $!
     
-    if [ "$INSTALL_DEV_DEPS" = true ]; then
-        print_info "Installing development dependencies..."
-        pip install pytest black flake8 mypy
+    if [[ $? -eq 0 ]]; then
+        print_success "✓ Python requirements installed"
+    else
+        print_error "✗ Failed to install Python requirements"
+        exit 1
     fi
     
-    print_success "Python dependencies installed successfully"
+    if [ "$INSTALL_DEV_DEPS" = true ]; then
+        print_info "→ Installing development dependencies..."
+        {
+            pip install pytest black flake8 mypy 2>&1
+        } &
+        show_spinner $! "Installing development tools"
+        wait $!
+        
+        if [[ $? -eq 0 ]]; then
+            print_success "✓ Development dependencies installed"
+        else
+            print_warning "⚠ Some development dependencies failed to install"
+        fi
+    fi
+    
+    print_success "✓ Python environment setup completed"
 }
 
 # Copy application files
 setup_application() {
-    print_header "\n📁 Setting up Application Files"
+    print_info "📁 Configuring application files..."
     
-    if [ "$USER_INSTALL" = true ]; then
-        print_info "Copying application files to user directory..."
-        cp -r . "$INSTALL_DIR/"
-    else
-        print_info "Copying application files to system directory..."
-        sudo cp -r . "$INSTALL_DIR/"
-        sudo chown -R $USER:$USER "$INSTALL_DIR"
-    fi
+    # Files are already in INSTALL_DIR from git clone, just need to set permissions
+    print_info "→ Setting file permissions..."
     
     # Make main.py executable
     chmod +x "$INSTALL_DIR/main.py"
     
-    print_success "Application files copied successfully"
+    # Set proper ownership if system-wide install
+    if [ "$USER_INSTALL" = false ]; then
+        sudo chown -R $USER:$USER "$INSTALL_DIR"
+    fi
+    
+    print_success "✓ Application files configured successfully"
 }
 
 # Create desktop entry
@@ -939,35 +1148,43 @@ main() {
     
     # Phase 1: Welcome and System Detection
     clear_and_banner
+    show_waiting_dots "Initializing installer" 2
     
-    print_section "🔍 SYSTEM DETECTION"
+    show_section "🔍 SYSTEM DETECTION"
     detect_system
     check_sudo
     check_internet_connectivity
     check_python
     
-    # Phase 2: User Preferences
-    print_section "⚙️ INSTALLATION PREFERENCES"
+    show_waiting_dots "System detection complete" 2
+    
+    # Phase 2: User Preferences (with proper clearing)
     ask_user_preferences
     
     # Phase 3: Installation Summary
+    show_section "📋 INSTALLATION SUMMARY"
     show_installation_summary
     
     if ! ask_yn "🚀 Proceed with installation?" "y" "Start the installation process with your selected options"; then
+        clear
         print_info "Installation cancelled by user"
         echo -e "${GRAY}Thank you for trying AppleTVRemote-GUI!${NC}"
         exit 0
     fi
     
     # Phase 4: Installation Process
-    print_section "📦 INSTALLING APPLETV REMOTE GUI"
-    
+    show_section "📦 INSTALLING SYSTEM PACKAGES"
     install_system_packages
     refresh_sudo  # Refresh sudo credentials after potentially long package installation
     
-    clone_repository
+    show_section "🐍 SETTING UP PYTHON ENVIRONMENT"
     setup_virtual_environment
     install_python_deps
+    
+    # Use the new repository setup function
+    setup_repository
+    
+    show_section "⚙️ CONFIGURING APPLICATION"
     setup_application
     
     if [[ "$CREATE_DESKTOP_ENTRY" == "true" ]]; then
@@ -991,7 +1208,7 @@ main() {
     fi
     
     # Phase 5: Testing and Verification
-    print_section "🧪 VERIFYING INSTALLATION"
+    show_section "🧪 VERIFYING INSTALLATION"
     if run_tests; then
         print_success "✓ All installation tests passed"
     else
@@ -999,13 +1216,14 @@ main() {
     fi
     
     # Phase 6: Success and Launch
-    print_section "🎉 INSTALLATION COMPLETE"
+    show_section "🎉 INSTALLATION COMPLETE"
     show_success_message
     
     if ask_yn "🚀 Launch AppleTVRemote-GUI now?" "y" "Start the application immediately to test the installation"; then
         launch_application
     fi
     
+    clear
     show_next_steps
     
     echo -e "\n${GREEN}${BOLD}🎉 Thank you for installing AppleTVRemote-GUI!${NC}"
