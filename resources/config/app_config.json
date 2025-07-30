@@ -1,0 +1,28 @@
+{
+  "app_name": "AppleTVRemote-GUI",
+  "version": "1.0.0",
+  "author": "Zac",
+  "description": "A modern Linux GUI application for controlling Apple TV and HomePod devices",
+  "default_settings": {
+    "theme": "dark",
+    "auto_discover": true,
+    "discovery_timeout": 10,
+    "connection_timeout": 15,
+    "debug_logging": false,
+    "window_geometry": null,
+    "last_device": null,
+    "known_devices": {}
+  },
+  "supported_protocols": [
+    "MRP",
+    "DMAP",
+    "AirPlay",
+    "Companion"
+  ],
+  "supported_device_types": [
+    "AppleTV",
+    "HomePod",
+    "HomePodMini",
+    "AirPort"
+  ]
+}
