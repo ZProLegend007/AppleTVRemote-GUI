@@ -543,7 +543,7 @@ install_packages_with_spinner() {
     } &
     local apt_pid=$!
     
-    show_spinner $apt_pid "Installing ${packages[*]}"
+    show_spinner_clean $apt_pid "Installing ${packages[*]}"
     wait $apt_pid
     local exit_code=$?
     
@@ -573,7 +573,7 @@ install_system_packages() {
                 {
                     safe_sudo apt update -qq 2>&1
                 } &
-                show_spinner $! "Updating package cache"
+                show_spinner_clean $! "Updating package cache"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ Package cache updated"
@@ -585,7 +585,7 @@ install_system_packages() {
                 {
                     safe_sudo apt install -y "${packages_to_install[@]}" 2>&1
                 } &
-                show_spinner $! "Installing base system packages"
+                show_spinner_clean $! "Installing base system packages"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ Base packages installed"
@@ -613,7 +613,7 @@ install_system_packages() {
                     {
                         safe_sudo apt install -y "${codec_packages[@]}" 2>&1
                     } &
-                    show_spinner $! "Installing audio codecs"
+                    show_spinner_clean $! "Installing audio codecs"
                     wait $!
                     if [[ $? -eq 0 ]]; then
                         print_success "✓ Audio codecs installed"
@@ -644,7 +644,7 @@ install_system_packages() {
                 {
                     safe_sudo dnf install -y "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
                 } &
-                show_spinner $! "Installing packages with DNF"
+                show_spinner_clean $! "Installing packages with DNF"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
@@ -659,7 +659,7 @@ install_system_packages() {
                     {
                         safe_sudo dnf install -y gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free 2>&1
                     } &
-                    show_spinner $! "Installing audio codecs"
+                    show_spinner_clean $! "Installing audio codecs"
                     wait $!
                 fi
             else
@@ -682,14 +682,14 @@ install_system_packages() {
                 {
                     safe_sudo pacman -Sy 2>&1
                 } &
-                show_spinner $! "Updating package database"
+                show_spinner_clean $! "Updating package database"
                 wait $!
                 
                 print_info "→ Installing packages with Pacman..."
                 {
                     safe_sudo pacman -S --noconfirm "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
                 } &
-                show_spinner $! "Installing packages with Pacman"
+                show_spinner_clean $! "Installing packages with Pacman"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
@@ -703,7 +703,7 @@ install_system_packages() {
                     {
                         safe_sudo pacman -S --noconfirm gst-plugins-good gst-plugins-bad gst-plugins-ugly 2>&1
                     } &
-                    show_spinner $! "Installing audio codecs"
+                    show_spinner_clean $! "Installing audio codecs"
                     wait $!
                 fi
             else
@@ -721,28 +721,28 @@ install_system_packages() {
                         {
                             safe_sudo apt install -y python3 python3-pip python3-venv git curl 2>&1
                         } &
-                        show_spinner $! "Installing basic dependencies"
+                        show_spinner_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "dnf")
                         {
                             safe_sudo dnf install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner $! "Installing basic dependencies"
+                        show_spinner_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "yum")
                         {
                             safe_sudo yum install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner $! "Installing basic dependencies"
+                        show_spinner_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "zypper")
                         {
                             safe_sudo zypper install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner $! "Installing basic dependencies"
+                        show_spinner_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                 esac
@@ -809,7 +809,7 @@ setup_repository() {
     {
         git clone --depth 1 https://github.com/ZProLegend007/ApplerGUI.git "$INSTALL_DIR" 2>&1
     } &
-    show_spinner $! "Downloading ApplerGUI"
+    show_spinner_clean $! "Downloading ApplerGUI"
     
     wait $!
     if [[ $? -eq 0 ]]; then
@@ -845,7 +845,7 @@ setup_virtual_environment() {
     } &
     local venv_pid=$!
     
-    show_spinner $venv_pid "Creating Python virtual environment"
+    show_spinner_clean $venv_pid "Creating Python virtual environment"
     wait $venv_pid
     local exit_code=$?
     
@@ -874,7 +874,7 @@ setup_virtual_environment() {
     } &
     local pip_pid=$!
     
-    show_spinner $pip_pid "Upgrading pip"
+    show_spinner_clean $pip_pid "Upgrading pip"
     wait $pip_pid
     
     if [[ $? -eq 0 ]]; then
@@ -903,7 +903,7 @@ install_python_deps() {
         {
             pip install PyQt6 PyQt6-Qt6 2>&1
         } &
-        show_spinner $! "Installing PyQt6 via pip"
+        show_spinner_clean $! "Installing PyQt6 via pip"
         
         if [[ $? -eq 0 ]]; then
             print_success "✓ ✓ PyQt6 installed via pip"
@@ -919,7 +919,7 @@ install_python_deps() {
         {
             pip install -r "$INSTALL_DIR/requirements.txt" 2>&1
         } &
-        show_spinner $! "Installing application dependencies"
+        show_spinner_clean $! "Installing application dependencies"
         
         if [[ $? -eq 0 ]]; then
             print_success "✓ ✓ Application dependencies installed"
@@ -934,7 +934,7 @@ install_python_deps() {
     {
         pip install -e "$INSTALL_DIR" 2>&1
     } &
-    show_spinner $! "Installing ApplerGUI"
+    show_spinner_clean $! "Installing ApplerGUI"
     
     if [[ $? -eq 0 ]]; then
         print_success "✓ ✓ ApplerGUI installed successfully"
@@ -948,7 +948,7 @@ install_python_deps() {
         {
             pip install pytest black flake8 mypy 2>&1
         } &
-        show_spinner $! "Installing development tools"
+        show_spinner_clean $! "Installing development tools"
         wait $!
         
         if [[ $? -eq 0 ]]; then
@@ -1419,7 +1419,7 @@ case "\$1" in
         cd "\$INSTALL_DIR"
         source "\$VENV_DIR/bin/activate"
         python3 check_updates.py
-        python3 -m src.main
+        python3 main.py
         ;;
 esac
 EOF
@@ -1430,8 +1430,6 @@ EOF
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
-}
-    echo -e "${GRAY}Made with ❤️ for the Apple TV community${NC}\n"
 }
 
 # Check if running as root
