@@ -116,6 +116,7 @@ CLI_SHORTCUT=false
 DEV_TOOLS=false
 SAMPLE_CONFIG=false
 EXTRA_THEMES=false
+INSTALL_PYQT6_VIA_PIP=false
 
 # Spinner animation for long operations
 show_spinner() {
@@ -411,7 +412,7 @@ ask_yn() {
     
     while true; do
         clear
-        show_section_header "⚙️ INSTALLATION PREFERENCES"
+        show_section "⚙️ INSTALLATION PREFERENCES"
         
         echo -e "\n${BLUE}┌─────────────────────────────────────────────────────────────────────────┐${NC}"
         echo -e "${BLUE}│${NC} $prompt"
@@ -424,36 +425,28 @@ ask_yn() {
             echo -en "${YELLOW}[y/N]${NC} (default: No): "
         fi
         
-        # CRITICAL: Actually wait for user input with timeout to prevent hanging
-        if read -r -t 60 response; then
-            # Handle empty input (use default)
-            if [[ -z "$response" ]]; then
-                response="$default"
-            fi
-            
-            case "${response,,}" in
-                y|yes|true|1)
-                    return 0
-                    ;;
-                n|no|false|0)
-                    return 1
-                    ;;
-                *)
-                    echo -e "\n${RED}⚠ Please enter 'y' for yes or 'n' for no${NC}"
-                    echo -e "Press Enter to continue..."
-                    read -r
-                    continue
-                    ;;
-            esac
-        else
-            # Timeout occurred, use default
-            echo -e "\n${YELLOW}⚠ Input timeout, using default: $default${NC}"
-            if [[ "$default" == "y" ]]; then
-                return 0
-            else
-                return 1
-            fi
+        # CRITICAL: Actually wait for user input from terminal
+        read -r response < /dev/tty
+        
+        # Handle empty input (use default)
+        if [[ -z "$response" ]]; then
+            response="$default"
         fi
+        
+        case "${response,,}" in
+            y|yes|true|1)
+                return 0
+                ;;
+            n|no|false|0)
+                return 1
+                ;;
+            *)
+                echo -e "\n${RED}⚠ Please enter 'y' for yes or 'n' for no${NC}"
+                echo -e "${GRAY}Press Enter to continue...${NC}"
+                read -r < /dev/tty
+                continue
+                ;;
+        esac
     done
 }
 
@@ -523,6 +516,22 @@ show_next_steps() {
     fi
 }
 
+# Helper function for package installation with proper error handling
+install_packages_with_spinner() {
+    local packages=("$@")
+    
+    {
+        safe_sudo apt install -y "${packages[@]}" 2>&1
+    } &
+    local apt_pid=$!
+    
+    show_spinner $apt_pid "Installing ${packages[*]}"
+    wait $apt_pid
+    local exit_code=$?
+    
+    return $exit_code
+}
+
 # Install system dependencies with enhanced sudo handling
 install_system_packages() {
     print_info "📦 Installing system dependencies..."
@@ -569,15 +578,12 @@ install_system_packages() {
                 fi
                 
                 print_info "→ Installing PyQt6 packages..."
-                {
-                    safe_sudo apt install -y "${pyqt_packages[@]}" 2>&1
-                } &
-                show_spinner $! "Installing PyQt6 system packages"
-                wait $!
-                if [[ $? -eq 0 ]]; then
-                    print_success "✓ PyQt6 system packages installed"
+                if install_packages_with_spinner "${pyqt_packages[@]}"; then
+                    print_success "✓ ✓ PyQt6 system packages installed"
                 else
-                    print_warning "⚠ PyQt6 system packages not available, will install via pip"
+                    print_warning "⚠ ⚠ PyQt6 system packages not available"
+                    print_info "ℹ ℹ Will install PyQt6 via pip instead"
+                    INSTALL_PYQT6_VIA_PIP=true
                 fi
                 
                 if [[ "$AUDIO_CODECS" == "true" ]]; then
@@ -731,7 +737,22 @@ install_system_packages() {
     esac
     
     if [[ "$install_success" == "true" ]]; then
-        print_success "✓ System dependencies installation completed"
+        print_success "✓ ✓ System dependencies installation completed"
+        
+        # Show installation summary
+        local success_packages=("base system packages")
+        local failed_packages=()
+        
+        if [[ "$INSTALL_PYQT6_VIA_PIP" == "true" ]]; then
+            failed_packages+=("PyQt6 system packages")
+            print_info "   ℹ Successfully installed: ${success_packages[*]}"
+            print_warning "   ⚠ Failed to install: ${failed_packages[*]} (will use pip fallback)"
+        else
+            success_packages+=("PyQt6 system packages")
+            print_info "   ℹ Successfully installed: ${success_packages[*]}"
+        fi
+        
+        sleep 2  # Let user see the summary
     else
         print_error "✗ System dependencies installation failed"
         exit 1
@@ -847,6 +868,23 @@ install_python_deps() {
     else
         print_error "✗ Failed to install Python requirements"
         exit 1
+    fi
+    
+    # Install PyQt6 via pip if system packages failed
+    if [[ "$INSTALL_PYQT6_VIA_PIP" == "true" ]]; then
+        print_info "→ Installing PyQt6 via pip..."
+        {
+            pip install PyQt6 PyQt6-Qt6 2>&1
+        } &
+        show_spinner $! "Installing PyQt6 via pip"
+        wait $!
+        
+        if [[ $? -eq 0 ]]; then
+            print_success "✓ ✓ PyQt6 installed via pip"
+        else
+            print_warning "⚠ ⚠ PyQt6 pip installation failed"
+            print_info "ℹ ℹ Application may have limited GUI functionality"
+        fi
     fi
     
     if [ "$INSTALL_DEV_DEPS" = true ]; then
