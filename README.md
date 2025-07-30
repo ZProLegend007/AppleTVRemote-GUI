@@ -1,10 +1,39 @@
 # AppleTVRemote-GUI
 
-A modern, feature-rich Linux GUI application for controlling Apple TV and HomePod devices using the pyatv library.
+Modern Linux GUI for controlling Apple TV and HomePod devices
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![PyQt6](https://img.shields.io/badge/GUI-PyQt6-green.svg)
+
+## 🚀 Quick Install
+
+```bash
+# One-line install command
+curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh | bash
+
+# Or download and inspect first (recommended)
+curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
+```
+
+## 📋 Installation Options
+
+During installation, you'll be prompted for:
+
+- **Desktop integration** (system menu entry) - Add application to your desktop environment's application menu
+- **System-wide vs user installation** - Install for all users or current user only
+- **Command-line access** ('atvremote' command) - Create a convenient command-line launcher
+- **Development tools** - Additional dependencies for developers and contributors
+- **Auto-start configuration** - Automatically launch the application on system boot
+- **Additional themes and codecs** - Enhanced UI themes and audio format support
+- **Configuration directory** - Pre-create settings and configuration folders
+
+### Installation Modes
+
+- **User Installation** (default): Installs to `~/.local/share/appletv-remote-gui`
+- **System-wide Installation**: Installs to `/opt/appletv-remote-gui` for all users
 
 ## Features
 
@@ -61,11 +90,30 @@ A modern, feature-rich Linux GUI application for controlling Apple TV and HomePo
 
 ### Prerequisites
 
-- **Python 3.8+** (tested with Python 3.8, 3.9, 3.10, 3.11)
+- **Python 3.8+** (tested with Python 3.8, 3.9, 3.10, 3.11, 3.12)
 - **Linux distribution** (Ubuntu 20.04+, Fedora 34+, or equivalent)
 - **Network access** to Apple TV/HomePod devices
 
-### Install from Source
+### Automated Installation (Recommended)
+
+The easiest way to install AppleTVRemote-GUI is using our automated installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZProLegend007/AppleTVRemote-GUI/main/install.sh | bash
+```
+
+The installer will:
+- Detect your operating system and package manager
+- Install all required system dependencies
+- Set up a Python virtual environment
+- Install Python dependencies
+- Configure desktop integration (optional)
+- Create command-line shortcuts (optional)
+- Run tests to verify installation
+
+### Manual Installation
+
+If you prefer to install manually or need more control:
 
 1. **Clone the repository:**
    ```bash
@@ -168,47 +216,141 @@ The application stores its configuration in:
 
 ## Troubleshooting
 
-### Common Issues
+### Installation Issues
+
+#### "Permission denied" during installation
+- Don't run the installer as root (`sudo`)
+- The installer will ask for sudo when needed for system packages
+- Ensure your user has sudo privileges
+
+#### "Package not found" errors
+- Update your package manager first:
+  - Ubuntu/Debian: `sudo apt-get update`
+  - Fedora: `sudo dnf update`
+  - Arch: `sudo pacman -Sy`
+- Ensure you have the necessary repositories enabled
+- For older distributions, some PyQt6 packages may not be available
+
+#### Python version issues
+- Ensure Python 3.8+ is installed: `python3 --version`
+- On older systems, you may need to install from source or use pyenv
+- Alternative Python installations (conda, pyenv) should work
+
+#### Virtual environment creation fails
+- Ensure `python3-venv` is installed (Ubuntu/Debian)
+- Check available disk space in the installation directory
+- Verify write permissions to the installation location
+
+#### "Command not found: atvremote"
+- If you chose command-line alias installation, restart your terminal
+- Or run: `source ~/.bashrc`
+- Check that `~/.local/bin` is in your PATH: `echo $PATH`
+
+### Application Issues
 
 #### "No devices found"
 - Ensure your Apple TV/HomePod is on the same network
 - Check that your devices are powered on and connected to WiFi
 - Try increasing the discovery timeout in settings
 - Verify firewall settings aren't blocking network discovery
+- Test with: `ping <apple-tv-ip-address>`
 
 #### "Connection failed"
 - Device may require pairing - click "Pair" button
 - Restart the Apple TV if connection issues persist
 - Clear stored credentials in Settings > Devices
 - Check network connectivity between your computer and Apple TV
+- Ensure no VPN is interfering with local network access
 
 #### "Pairing failed"
 - Ensure you're entering the correct PIN from the Apple TV screen
 - Make sure no other devices are trying to pair simultaneously
 - Restart the Apple TV and try pairing again
 - Try using a different pairing method if available
+- Check Apple TV settings for device restrictions
 
 #### Application won't start
 - Verify all dependencies are installed: `pip install -r requirements.txt`
 - Check Python version: `python --version` (requires 3.8+)
 - Install PyQt6 system packages for your distribution
 - Check console output for specific error messages
+- Try running with debug flag: `python main.py --debug`
+
+#### GUI appears blank or distorted
+- Update your graphics drivers
+- Try running with software rendering: `QT_QUICK_BACKEND=software python main.py`
+- Check if running under Wayland, try X11 session
+- Verify PyQt6 multimedia packages are installed
+
+#### Audio/media controls not working
+- Install GStreamer plugins for your distribution
+- Check audio system (PulseAudio/PipeWire) is running
+- Verify codec support with `gst-inspect-1.0`
+- Test audio on Apple TV with other applications
+
+### Network Configuration
+
+#### Firewall Issues
+Common ports that may need to be opened:
+- **3689** - DAAP (iTunes protocol)
+- **7000** - AirPlay
+- **49152-65535** - Various Apple TV services
+
+#### Router/Network Issues
+- Ensure multicast/broadcast traffic is allowed
+- Check for client isolation on WiFi networks
+- Verify both devices are on the same subnet
+- Some enterprise networks block device discovery
 
 ### Debug Mode
 
-Enable debug logging in Settings > General > Debug to get detailed information about:
-- Device discovery process
-- Connection attempts
-- Pairing workflows
-- API communication
+Enable debug logging to get detailed information:
 
-Debug logs are printed to the console when running from terminal.
+```bash
+# Command line
+python main.py --debug
 
-### Network Requirements
+# Or via environment variable
+DEBUG=1 python main.py
 
-- **Multicast DNS (mDNS)**: Required for device discovery
-- **TCP connections**: Various ports for different Apple TV services
-- **Same network segment**: Apple TV and computer must be on the same local network
+# With log file
+python main.py --debug 2>&1 | tee appletv-debug.log
+```
+
+Debug logs include:
+- Device discovery process details
+- Connection attempt information
+- Pairing workflow status
+- API communication logs
+- Error stack traces
+
+### Getting Help
+
+If you're still experiencing issues:
+
+1. **Check existing issues**: [GitHub Issues](https://github.com/ZProLegend007/AppleTVRemote-GUI/issues)
+2. **Run with debug logging** and include logs in your report
+3. **Provide system information**:
+   - Linux distribution and version
+   - Python version
+   - PyQt6 version
+   - Apple TV model and version
+4. **Create a new issue** with detailed information
+
+### System Information Collection
+
+Run this command to collect system information for bug reports:
+
+```bash
+echo "System Information:" > debug-info.txt
+echo "===================" >> debug-info.txt
+echo "OS: $(lsb_release -d 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME)" >> debug-info.txt
+echo "Python: $(python3 --version)" >> debug-info.txt
+echo "PyQt6: $(python3 -c 'import PyQt6; print(PyQt6.__version__)' 2>/dev/null || echo 'Not installed')" >> debug-info.txt
+echo "pip list:" >> debug-info.txt
+pip list | grep -E "(pyqt6|pyatv|qasync)" >> debug-info.txt
+cat debug-info.txt
+```
 
 ## Development
 
