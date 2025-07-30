@@ -118,30 +118,38 @@ SAMPLE_CONFIG=false
 EXTRA_THEMES=false
 INSTALL_PYQT6_VIA_PIP=false
 
-# Clean spinner animation that doesn't conflict with command output
-show_spinner_clean() {
+# Completely clean spinner animation with isolated output
+show_spinner_completely_clean() {
     local pid=$1
     local message="$2"
     local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
     local i=0
+    local start_time=$(date +%s)
     
-    # Hide command output, show only spinner
-    while kill -0 $pid 2>/dev/null; do
-        i=$(( (i+1) %8 ))
-        printf "\r${BLUE}${spin:$i:1}${NC} $message"
-        sleep .1
-    done
-    
-    # Clear spinner line and show result
+    # Clear any existing line content
     printf "\r\033[K"
     
-    # Check exit code and show appropriate message
+    # Show spinner while process runs
+    while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) %8 ))
+        printf "\r\033[K${BLUE}${spin:$i:1}${NC} $message"
+        sleep 0.15
+    done
+    
+    # Clear spinner line completely
+    printf "\r\033[K"
+    
+    # Wait for process and get exit code
     wait $pid
     local exit_code=$?
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    # Show final result on clean line
     if [[ $exit_code -eq 0 ]]; then
-        printf "✓ $message\n"
+        printf "${GREEN}✓${NC} $message ${GRAY}(${duration}s)${NC}\n"
     else
-        printf "✗ $message (failed)\n"
+        printf "${RED}✗${NC} $message ${GRAY}(failed after ${duration}s)${NC}\n"
     fi
     
     return $exit_code
@@ -534,16 +542,125 @@ show_next_steps() {
     fi
 }
 
+# Create GTK environment setup for system integration
+setup_gtk_environment() {
+    show_section "🎨 SETTING UP CLEAN GTK ENVIRONMENT"
+    
+    print_info "→ Setting up clean GTK theme environment..."
+    
+    # Create clean GTK settings directory
+    mkdir -p "$HOME/.config/gtk-3.0"
+    
+    # Create clean GTK settings to prevent theme conflicts
+    cat > "$HOME/.config/gtk-3.0/settings.ini" << EOF
+[Settings]
+gtk-theme-name = Adwaita
+gtk-application-prefer-dark-theme = false
+gtk-font-name = Sans 10
+gtk-cursor-theme-name = Adwaita
+gtk-cursor-theme-size = 24
+gtk-toolbar-style = GTK_TOOLBAR_BOTH
+gtk-toolbar-icon-size = GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-button-images = 1
+gtk-menu-images = 1
+gtk-enable-event-sounds = 1
+gtk-enable-input-feedback-sounds = 1
+EOF
+
+    print_success "✓ GTK environment configured"
+    
+    # Create environment setup script for application launch
+    print_info "→ Creating application environment setup..."
+    
+    cat > "$INSTALL_DIR/set_gtk_env.sh" << 'EOF'
+#!/bin/bash
+# Set clean GTK environment for ApplerGUI
+
+# Set clean GTK environment
+export GTK_THEME="Adwaita"
+export GDK_BACKEND=x11
+
+# Disable GTK theme customization that could cause conflicts
+unset GTK_CSS_PATH
+unset GTK_THEME_PATH
+
+# Ensure clean Qt environment
+export QT_STYLE_OVERRIDE=""
+export QT_QPA_PLATFORMTHEME=""
+
+exec "$@"
+EOF
+    
+    chmod +x "$INSTALL_DIR/set_gtk_env.sh"
+    print_success "✓ Environment setup script created"
+}
+
+# Install packages with completely isolated output
+install_packages_completely_clean() {
+    local packages=("$@")
+    local temp_log="/tmp/applergui_install_$$.log"
+    
+    # Run apt in background with all output redirected
+    {
+        DEBIAN_FRONTEND=noninteractive apt-get update >/dev/null 2>&1
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}" >/dev/null 2>"$temp_log"
+    } &
+    local apt_pid=$!
+    
+    # Show clean spinner
+    show_spinner_completely_clean $apt_pid "Installing ${packages[*]}"
+    local exit_code=$?
+    
+    # If failed, show brief error summary
+    if [[ $exit_code -ne 0 ]] && [[ -f "$temp_log" ]]; then
+        local error_count=$(wc -l < "$temp_log")
+        if [[ $error_count -gt 0 ]]; then
+            printf "${YELLOW}  └─ Warning: Some packages unavailable${NC}\n"
+        fi
+    fi
+    
+    # Clean up temp log
+    rm -f "$temp_log"
+    
+    return $exit_code
+}
+
+# Install Python packages with clean output
+install_pip_packages_clean() {
+    local packages=("$@")
+    local temp_log="/tmp/applergui_pip_$$.log"
+    
+    # Ensure we're in virtual environment
+    if [[ -z "$VIRTUAL_ENV" ]]; then
+        source "$VENV_DIR/bin/activate" 2>/dev/null || true
+    fi
+    
+    # Run pip in background with output redirected
+    {
+        pip install --quiet --no-warn-script-location "${packages[@]}" >"$temp_log" 2>&1
+    } &
+    local pip_pid=$!
+    
+    # Show clean spinner
+    show_spinner_completely_clean $pip_pid "Installing Python packages: ${packages[*]}"
+    local exit_code=$?
+    
+    # Clean up
+    rm -f "$temp_log"
+    
+    return $exit_code
+}
+
 # Helper function for package installation with proper error handling
 install_packages_with_spinner() {
     local packages=("$@")
     
     {
-        safe_sudo apt install -y "${packages[@]}" 2>&1
+        safe_sudo apt install -y "${packages[@]}" >/dev/null 2>&1
     } &
     local apt_pid=$!
     
-    show_spinner_clean $apt_pid "Installing ${packages[*]}"
+    show_spinner_completely_clean $apt_pid "Installing ${packages[*]}"
     wait $apt_pid
     local exit_code=$?
     
@@ -571,9 +688,9 @@ install_system_packages() {
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
                 print_info "→ Updating package cache..."
                 {
-                    safe_sudo apt update -qq 2>&1
+                    safe_sudo apt update -qq >/dev/null 2>&1
                 } &
-                show_spinner_clean $! "Updating package cache"
+                show_spinner_completely_clean $! "Updating package cache"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ Package cache updated"
@@ -583,9 +700,9 @@ install_system_packages() {
                 
                 print_info "→ Installing base packages..."
                 {
-                    safe_sudo apt install -y "${packages_to_install[@]}" 2>&1
+                    safe_sudo apt install -y "${packages_to_install[@]}" >/dev/null 2>&1
                 } &
-                show_spinner_clean $! "Installing base system packages"
+                show_spinner_completely_clean $! "Installing base system packages"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ Base packages installed"
@@ -611,9 +728,9 @@ install_system_packages() {
                         "gstreamer1.0-plugins-ugly" "gstreamer1.0-libav"
                     )
                     {
-                        safe_sudo apt install -y "${codec_packages[@]}" 2>&1
+                        safe_sudo apt install -y "${codec_packages[@]}" >/dev/null 2>&1
                     } &
-                    show_spinner_clean $! "Installing audio codecs"
+                    show_spinner_completely_clean $! "Installing audio codecs"
                     wait $!
                     if [[ $? -eq 0 ]]; then
                         print_success "✓ Audio codecs installed"
@@ -642,9 +759,9 @@ install_system_packages() {
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
                 print_info "→ Installing packages with DNF..."
                 {
-                    safe_sudo dnf install -y "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
+                    safe_sudo dnf install -y "${packages_to_install[@]}" "${pyqt_packages[@]}" >/dev/null 2>&1
                 } &
-                show_spinner_clean $! "Installing packages with DNF"
+                show_spinner_completely_clean $! "Installing packages with DNF"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
@@ -657,9 +774,9 @@ install_system_packages() {
                 if [[ "$AUDIO_CODECS" == "true" ]]; then
                     print_info "→ Installing audio codecs..."
                     {
-                        safe_sudo dnf install -y gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free 2>&1
+                        safe_sudo dnf install -y gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free >/dev/null 2>&1
                     } &
-                    show_spinner_clean $! "Installing audio codecs"
+                    show_spinner_completely_clean $! "Installing audio codecs"
                     wait $!
                 fi
             else
@@ -680,16 +797,16 @@ install_system_packages() {
             if [[ "$SUDO_AVAILABLE" == "true" ]]; then
                 print_info "→ Updating package database..."
                 {
-                    safe_sudo pacman -Sy 2>&1
+                    safe_sudo pacman -Sy >/dev/null 2>&1
                 } &
-                show_spinner_clean $! "Updating package database"
+                show_spinner_completely_clean $! "Updating package database"
                 wait $!
                 
                 print_info "→ Installing packages with Pacman..."
                 {
                     safe_sudo pacman -S --noconfirm "${packages_to_install[@]}" "${pyqt_packages[@]}" 2>&1
                 } &
-                show_spinner_clean $! "Installing packages with Pacman"
+                show_spinner_completely_clean $! "Installing packages with Pacman"
                 wait $!
                 if [[ $? -eq 0 ]]; then
                     print_success "✓ System packages installed"
@@ -703,7 +820,7 @@ install_system_packages() {
                     {
                         safe_sudo pacman -S --noconfirm gst-plugins-good gst-plugins-bad gst-plugins-ugly 2>&1
                     } &
-                    show_spinner_clean $! "Installing audio codecs"
+                    show_spinner_completely_clean $! "Installing audio codecs"
                     wait $!
                 fi
             else
@@ -721,28 +838,28 @@ install_system_packages() {
                         {
                             safe_sudo apt install -y python3 python3-pip python3-venv git curl 2>&1
                         } &
-                        show_spinner_clean $! "Installing basic dependencies"
+                        show_spinner_completely_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "dnf")
                         {
                             safe_sudo dnf install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner_clean $! "Installing basic dependencies"
+                        show_spinner_completely_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "yum")
                         {
                             safe_sudo yum install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner_clean $! "Installing basic dependencies"
+                        show_spinner_completely_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                     "zypper")
                         {
                             safe_sudo zypper install -y python3 python3-pip git curl 2>&1
                         } &
-                        show_spinner_clean $! "Installing basic dependencies"
+                        show_spinner_completely_clean $! "Installing basic dependencies"
                         wait $!
                         ;;
                 esac
@@ -799,6 +916,118 @@ setup_installation_directory() {
 }
 
 # Proper directory and repository management
+# Create proper application launcher with clean environment
+create_clean_launcher() {
+    show_section "🚀 CREATING CLEAN APPLICATION LAUNCHER"
+    
+    local bin_dir="$HOME/.local/bin"
+    mkdir -p "$bin_dir"
+    
+    print_info "→ Creating clean application launcher..."
+    
+    cat > "$bin_dir/applergui" << EOF
+#!/bin/bash
+# ApplerGUI Clean Launcher
+
+INSTALL_DIR="$INSTALL_DIR"
+VENV_DIR="\$INSTALL_DIR/venv"
+
+# Function to launch with clean environment
+launch_clean() {
+    cd "\$INSTALL_DIR" || {
+        echo "Error: Installation directory not found: \$INSTALL_DIR"
+        exit 1
+    }
+    
+    # Set clean GTK environment
+    export GTK_THEME="Adwaita"
+    export GDK_BACKEND=x11
+    unset GTK_CSS_PATH
+    unset GTK_THEME_PATH
+    
+    # Set clean Qt environment
+    export QT_STYLE_OVERRIDE=""
+    export QT_QPA_PLATFORMTHEME=""
+    
+    # Activate virtual environment
+    if [[ -f "\$VENV_DIR/bin/activate" ]]; then
+        source "\$VENV_DIR/bin/activate"
+    else
+        echo "Error: Virtual environment not found"
+        exit 1
+    fi
+    
+    # Run Qt connection check (silent unless there are issues)
+    if [[ -f "\$INSTALL_DIR/qt_connection_fix.py" ]]; then
+        python3 "\$INSTALL_DIR/qt_connection_fix.py" >/dev/null 2>&1 || {
+            echo "⚠ Warning: Qt connection issues detected, but continuing..."
+        }
+    fi
+    
+    # Launch application with clean environment and error handling
+    echo "🚀 Starting ApplerGUI..."
+    
+    # Try to launch the application
+    if python3 -m main 2>/dev/null; then
+        echo "✓ ApplerGUI launched successfully"
+    else
+        echo "✗ Failed to launch ApplerGUI"
+        echo "Trying alternative launch method..."
+        if python3 main.py 2>/dev/null; then
+            echo "✓ ApplerGUI launched with fallback method"
+        else
+            echo "✗ ApplerGUI launch failed"
+            echo "Please check the installation or run with --debug for more information"
+            exit 1
+        fi
+    fi
+}
+
+# Handle command line arguments
+case "\$1" in
+    --update)
+        echo "🔄 Updating ApplerGUI..."
+        bash "\$INSTALL_DIR/update.sh" 2>/dev/null || {
+            echo "Update script not found, please reinstall"
+            exit 1
+        }
+        ;;
+    --version)
+        cd "\$INSTALL_DIR"
+        git describe --tags --always 2>/dev/null || echo "unknown"
+        ;;
+    --debug)
+        cd "\$INSTALL_DIR" || exit 1
+        source "\$VENV_DIR/bin/activate"
+        echo "🐛 Launching ApplerGUI in debug mode..."
+        python3 -m main
+        ;;
+    --help)
+        echo "ApplerGUI - Apple TV & HomePod Control"
+        echo "Usage:"
+        echo "  applergui         Launch GUI application"
+        echo "  applergui --update    Update to latest version"
+        echo "  applergui --version   Show version information"
+        echo "  applergui --debug     Launch with debug output"
+        echo "  applergui --help      Show this help"
+        ;;
+    *)
+        launch_clean
+        ;;
+esac
+EOF
+    
+    chmod +x "$bin_dir/applergui"
+    print_success "✓ Clean launcher created at $bin_dir/applergui"
+    
+    # Add to PATH if not already there
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$HOME/.bashrc"
+        print_info "→ Added $HOME/.local/bin to PATH in .bashrc"
+        print_warning "⚠ Please run 'source ~/.bashrc' or restart your terminal to use 'applergui' command"
+    fi
+}
+
 setup_repository() {
     show_section "📥 DOWNLOADING APPLICATION"
     
@@ -809,7 +1038,7 @@ setup_repository() {
     {
         git clone --depth 1 https://github.com/ZProLegend007/ApplerGUI.git "$INSTALL_DIR" 2>&1
     } &
-    show_spinner_clean $! "Downloading ApplerGUI"
+    show_spinner_completely_clean $! "Downloading ApplerGUI"
     
     wait $!
     if [[ $? -eq 0 ]]; then
@@ -841,11 +1070,11 @@ setup_virtual_environment() {
     
     print_info "→ Creating virtual environment..."
     {
-        python3 -m venv "$VENV_DIR" 2>&1
+        python3 -m venv "$VENV_DIR" >/dev/null 2>&1
     } &
     local venv_pid=$!
     
-    show_spinner_clean $venv_pid "Creating Python virtual environment"
+    show_spinner_completely_clean $venv_pid "Creating Python virtual environment"
     wait $venv_pid
     local exit_code=$?
     
@@ -870,11 +1099,11 @@ setup_virtual_environment() {
     # Upgrade pip in virtual environment
     print_info "→ Upgrading pip..."
     {
-        pip install --upgrade pip 2>&1
+        pip install --upgrade pip >/dev/null 2>&1
     } &
     local pip_pid=$!
     
-    show_spinner_clean $pip_pid "Upgrading pip"
+    show_spinner_completely_clean $pip_pid "Upgrading pip"
     wait $pip_pid
     
     if [[ $? -eq 0 ]]; then
@@ -903,7 +1132,7 @@ install_python_deps() {
         {
             pip install PyQt6 PyQt6-Qt6 2>&1
         } &
-        show_spinner_clean $! "Installing PyQt6 via pip"
+        show_spinner_completely_clean $! "Installing PyQt6 via pip"
         
         if [[ $? -eq 0 ]]; then
             print_success "✓ ✓ PyQt6 installed via pip"
@@ -919,7 +1148,7 @@ install_python_deps() {
         {
             pip install -r "$INSTALL_DIR/requirements.txt" 2>&1
         } &
-        show_spinner_clean $! "Installing application dependencies"
+        show_spinner_completely_clean $! "Installing application dependencies"
         
         if [[ $? -eq 0 ]]; then
             print_success "✓ ✓ Application dependencies installed"
@@ -934,7 +1163,7 @@ install_python_deps() {
     {
         pip install -e "$INSTALL_DIR" 2>&1
     } &
-    show_spinner_clean $! "Installing ApplerGUI"
+    show_spinner_completely_clean $! "Installing ApplerGUI"
     
     if [[ $? -eq 0 ]]; then
         print_success "✓ ✓ ApplerGUI installed successfully"
@@ -948,7 +1177,7 @@ install_python_deps() {
         {
             pip install pytest black flake8 mypy 2>&1
         } &
-        show_spinner_clean $! "Installing development tools"
+        show_spinner_completely_clean $! "Installing development tools"
         wait $!
         
         if [[ $? -eq 0 ]]; then
@@ -1270,6 +1499,10 @@ main() {
     if [[ "$DOWNLOAD_THEMES" == "true" ]]; then
         download_sample_themes
     fi
+    
+    # Phase 4.5: Setup Clean Environment and Launcher
+    setup_gtk_environment
+    create_clean_launcher
     
     # Phase 5: Testing and Verification
     show_section "🧪 VERIFYING INSTALLATION"
