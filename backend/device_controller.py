@@ -1,6 +1,7 @@
 """Device controller for managing Apple TV/HomePod connections and operations."""
 
 import asyncio
+import logging
 from typing import Optional, Dict, Any, List
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 import qasync
@@ -30,6 +31,7 @@ class DeviceController(QObject):
         self._device_info: Dict[str, Dict[str, Any]] = {}
         self._current_device_id: Optional[str] = None
         self._discovery_task: Optional[asyncio.Task] = None
+        self.devices: Dict[str, Dict[str, Any]] = {}  # For discovered devices
         
         # Timer for periodic now playing updates
         self._update_timer = QTimer()
@@ -338,3 +340,42 @@ class DeviceController(QObject):
         except Exception as e:
             print(f"Failed to get artwork: {e}")
         return None
+
+    def add_discovered_device(self, device_info: Dict[str, Any]) -> str:
+        """Add a discovered device to the managed devices"""
+        device_id = f"{device_info['name']}_{device_info['address']}"
+        
+        # Store device information
+        self.devices[device_id] = {
+            'name': device_info['name'],
+            'address': device_info['address'],
+            'model': device_info.get('model', 'Unknown'),
+            'services': device_info.get('services', []),
+            'status': 'paired',
+            'last_seen': device_info.get('paired_at', ''),
+            'capabilities': self._detect_capabilities(device_info)
+        }
+        
+        # Save to config
+        self.config_manager.add_known_device(device_id, device_info)
+        
+        logging.info(f"Added discovered device: {device_info['name']}")
+        return device_id
+
+    def _detect_capabilities(self, device_info: Dict[str, Any]) -> List[str]:
+        """Detect device capabilities based on model and services"""
+        capabilities = []
+        model = device_info.get('model', '').lower()
+        services = device_info.get('services', [])
+        
+        if 'apple tv' in model:
+            capabilities.extend(['media_control', 'remote_control', 'app_launch'])
+        elif 'homepod' in model:
+            capabilities.extend(['media_control', 'airplay'])
+        
+        if 'airplay' in [s.lower() for s in services]:
+            capabilities.append('airplay')
+        if 'companion' in [s.lower() for s in services]:
+            capabilities.append('remote_control')
+        
+        return capabilities

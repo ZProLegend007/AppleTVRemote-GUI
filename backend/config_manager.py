@@ -211,8 +211,8 @@ class ConfigManager:
         """Get list of known/saved Apple TV devices"""
         return self.get('devices.known_devices', {})
     
-    def save_known_device(self, device_id: str, device_info: Dict[str, Any]):
-        """Save a device to known devices list"""
+    def add_known_device(self, device_id: str, device_info: Dict[str, Any]):
+        """Add a device to known devices list"""
         known_devices = self.get_known_devices()
         known_devices[device_id] = {
             'name': device_info.get('name', 'Unknown Device'),
@@ -223,7 +223,11 @@ class ConfigManager:
             'saved_at': device_info.get('saved_at', datetime.now().isoformat())
         }
         self.set('devices.known_devices', known_devices)
-        logging.info(f"Saved device {device_id} to known devices")
+        logging.info(f"Added device {device_id} to known devices")
+    
+    def save_known_device(self, device_id: str, device_info: Dict[str, Any]):
+        """Save a device to known devices list (alias for add_known_device)"""
+        self.add_known_device(device_id, device_info)
     
     def remove_known_device(self, device_id: str):
         """Remove a device from known devices list"""
@@ -238,7 +242,7 @@ class ConfigManager:
         known_devices = self.get_known_devices()
         return device_id in known_devices
     
-    def get_device_credentials(self, device_id: str) -> Optional[Dict[str, str]]:
+    def get_credentials(self, device_id: str) -> Optional[Dict[str, str]]:
         """Get stored credentials for a device"""
         pin = self.get_credential('apple_tv', f"{device_id}_pin")
         credentials = self.get_credential('apple_tv', f"{device_id}_creds")
@@ -249,6 +253,10 @@ class ConfigManager:
                 'credentials': credentials
             }
         return None
+    
+    def get_device_credentials(self, device_id: str) -> Optional[Dict[str, str]]:
+        """Get stored credentials for a device (alias for get_credentials)"""
+        return self.get_credentials(device_id)
     
     def save_device_credentials(self, device_id: str, pin: str = None, credentials: str = None):
         """Save device credentials"""

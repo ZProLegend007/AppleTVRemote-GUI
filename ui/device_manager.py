@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from PyQt6.QtGui import QFont
 import asyncio
 import qasync
+import logging
 
 from backend.config_manager import ConfigManager
 from backend.device_controller import DeviceController
@@ -260,23 +261,27 @@ class DeviceManagerWidget(QWidget):
         devices_list = list(known_devices.values())
         self._populate_device_list(devices_list)
     
-    @qasync.asyncSlot()
-    async def _discover_devices(self):
-        """Start device discovery."""
+    def _discover_devices(self):
+        """Launch Apple TV discovery and pairing wizard"""
         try:
-            self._set_discovery_state(True)
-            timeout = self.timeout_spin.value()
-            await self.device_controller.discover_devices(timeout)
+            from ui.discovery_wizard import DiscoveryWizard
+            
+            # Create and show discovery wizard
+            wizard = DiscoveryWizard(self.config_manager, parent=self)
+            
+            # Connect signals
+            wizard.device_paired.connect(self._on_device_paired)
+            wizard.discovery_finished.connect(self._on_discovery_finished)
+            
+            wizard.show()
+            
         except Exception as e:
-            print(f"Device discovery failed: {e}")
-            QMessageBox.warning(self, "Discovery Failed", f"Device discovery failed: {e}")
-        finally:
-            self._set_discovery_state(False)
+            logging.error(f"Failed to launch discovery wizard: {e}")
+            self._show_error("Discovery Error", f"Failed to launch device discovery: {str(e)}")
     
-    @qasync.asyncSlot()
-    async def _refresh_devices(self):
+    def _refresh_devices(self):
         """Refresh the device list."""
-        await self._discover_devices()
+        self._discover_devices()
     
     def _populate_device_list(self, devices: list):
         """Populate the device list with discovered devices."""
@@ -401,6 +406,32 @@ class DeviceManagerWidget(QWidget):
         self.discovery_status.setText(f"Error: {error}")
         self.discovery_status.setStyleSheet("color: #ff0000; font-size: 10px;")
         QMessageBox.warning(self, "Discovery Error", f"Discovery failed:\n{error}")
+    
+    def _on_device_paired(self, device_info):
+        """Handle successful device pairing"""
+        logging.info(f"Device paired successfully: {device_info['name']}")
+        
+        # Add to known devices
+        device_id = f"{device_info['name']}_{device_info['address']}"
+        self.config_manager.save_known_device(device_id, device_info)
+        
+        # Refresh the device list
+        self._load_known_devices()
+        
+        # Show success message
+        self._show_info("Device Paired", f"Successfully paired with {device_info['name']}")
+
+    def _on_discovery_finished(self):
+        """Handle discovery wizard completion"""
+        logging.info("Device discovery wizard completed")
+    
+    def _show_error(self, title: str, message: str):
+        """Show error message dialog"""
+        QMessageBox.warning(self, title, message)
+    
+    def _show_info(self, title: str, message: str):
+        """Show info message dialog"""
+        QMessageBox.information(self, title, message)
     
     def get_selected_device(self) -> dict:
         """Get the currently selected device info."""
