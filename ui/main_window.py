@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QSplitter, QFrame, QTabWidget, QLabel, QPushButton, 
                              QProgressBar, QTableWidget, QGroupBox, QGridLayout, 
                              QSlider, QTableWidgetItem, QLineEdit, QStatusBar, 
-                             QMenuBar, QMessageBox, QApplication)
+                             QMenuBar, QMessageBox, QApplication, QSizePolicy)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThreadPool, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QFont, QAction, QKeySequence, QPixmap
 import asyncio
@@ -44,7 +44,7 @@ class DiscoveryPanel(QFrame):
         
         # Ensure minimum size for visibility
         self.setMinimumSize(300, 400)
-        self.setSizePolicy(self.sizePolicy().Expanding, self.sizePolicy().Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -300,7 +300,7 @@ class RemotePanel(QFrame):
         
         # Ensure minimum size for visibility
         self.setMinimumSize(300, 500)  # Increased height for shortcuts
-        self.setSizePolicy(self.sizePolicy().Expanding, self.sizePolicy().Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
