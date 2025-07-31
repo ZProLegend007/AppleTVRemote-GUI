@@ -3,28 +3,6 @@
 import sys
 import logging
 from typing import Optional, Dict, Any
-
-# Conditional imports for backend modules
-try:
-    from backend.config_manager import ConfigManager
-    from backend.device_controller import DeviceController  
-    from backend.pairing_manager import PairingManager
-    BACKEND_AVAILABLE = True
-except ImportError:
-    # Fallback dummy classes for testing
-    class ConfigManager:
-        def __init__(self): self.config = {}
-        def get(self, key, default=None): return self.config.get(key, default)
-        def set(self, key, value): self.config[key] = value
-    
-    class DeviceController:
-        def __init__(self, config_manager): pass
-    
-    class PairingManager:
-        def __init__(self, config_manager): pass
-    
-    BACKEND_AVAILABLE = False
-
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
                              QSplitter, QFrame, QTabWidget, QStackedWidget,
                              QLabel, QPushButton, QProgressBar, QTableWidget,
@@ -703,12 +681,10 @@ class NowPlayingPanel(QFrame):
         self.total_time_label.setText("3:39")
 
 
-class MainWindow(QMainWindow):
+class ResponsiveMainWindow(QMainWindow):
     """Main window with responsive three-section layout."""
     
-    def __init__(self, config_manager: ConfigManager, 
-                 device_controller: DeviceController,
-                 pairing_manager: PairingManager):
+    def __init__(self, config_manager=None, device_controller=None, pairing_manager=None):
         super().__init__()
         self.config_manager = config_manager
         self.device_controller = device_controller
@@ -867,32 +843,3 @@ class MainWindow(QMainWindow):
         logging.info(f"PIN entered for {device_info['name']}: {pin}")
         QMessageBox.information(self, "Pairing", 
                                 f"PIN entered for {device_info['name']}: {pin}\n(Demo mode)")
-        
-    # Legacy method stubs to maintain compatibility
-    def _on_device_connected(self, device_id: str, device_info: dict):
-        """Handle device connection (legacy compatibility)."""
-        pass
-    
-    def _on_device_disconnected(self, device_id: str):
-        """Handle device disconnection (legacy compatibility)."""
-        pass
-    
-    def _on_devices_discovered(self, devices: list):
-        """Handle device discovery completion (legacy compatibility)."""
-        pass
-    
-    def _on_connection_failed(self, device_id: str, error: str):
-        """Handle connection failure (legacy compatibility)."""
-        pass
-    
-    def _on_pairing_completed(self, device_id: str, credentials: dict):
-        """Handle successful pairing (legacy compatibility)."""
-        pass
-    
-    def _on_pairing_started(self, device_id: str):
-        """Handle pairing started signal (legacy compatibility)."""
-        pass
-    
-    def _on_pairing_failed(self, device_id: str, error: str):
-        """Handle pairing failure (legacy compatibility)."""
-        pass
