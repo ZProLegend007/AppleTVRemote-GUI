@@ -121,15 +121,20 @@ class DiscoveryPanel(QFrame):
     
     @qasync.asyncSlot()
     async def _start_discovery(self):
-        """Start real device discovery using pyatv with loading animation and terminal output"""
-        # Start loading animation
+        """Start real device discovery using pyatv with enhanced loading animation and terminal output"""
+        # Start enhanced loading animation
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)  # Indeterminate progress bar
-        self.status_label.setText("Discovering...")
-        self.discover_btn.setText("Discovering...")  # Button text indicates loading state
+        self.status_label.setText("Discovering Apple TV devices...")
         self.discover_btn.setEnabled(False)
         self.discovered_devices.clear()
         self._populate_device_table()
+        
+        # Setup animated loading dots for button text
+        self.loading_timer = QTimer()
+        self.loading_dots = 0
+        self.loading_timer.timeout.connect(self._update_discovery_loading_animation)
+        self.loading_timer.start(500)  # Update every 500ms
         
         # Terminal output for debugging
         print("🔍 Starting Apple TV discovery...")
@@ -140,7 +145,7 @@ class DiscoveryPanel(QFrame):
             
             # Real device discovery with terminal output
             print("📡 Scanning for Apple TV devices...")
-            devices = await pyatv.scan(timeout=5)
+            devices = await pyatv.scan(timeout=8)  # Longer timeout for better results
             
             self.discovered_devices = []
             for device in devices:
@@ -157,24 +162,35 @@ class DiscoveryPanel(QFrame):
             
             self._populate_device_table()
             device_count = len(self.discovered_devices)
-            self.status_label.setText(f"Found {device_count} device(s)")
+            
+            if device_count > 0:
+                self.status_label.setText(f"✅ Found {device_count} device(s)")
+            else:
+                self.status_label.setText("No Apple TV devices found")
             
             # Terminal output summary
             print(f"✅ Discovery completed: {device_count} device(s) found")
             
         except ImportError:
-            error_msg = "Error: pyatv not installed"
+            error_msg = "❌ Error: pyatv not installed. Install with: pip install pyatv"
             self.status_label.setText(error_msg)
             print(f"❌ {error_msg}")
         except Exception as e:
-            error_msg = f"Discovery error: {str(e)}"
+            error_msg = f"❌ Discovery error: {str(e)}"
             self.status_label.setText(error_msg)
             print(f"❌ {error_msg}")
         finally:
             # Stop loading animation
+            self.loading_timer.stop()
             self.progress_bar.setVisible(False)
             self.discover_btn.setText("Discover Apple TVs")  # Reset button text
             self.discover_btn.setEnabled(True)
+    
+    def _update_discovery_loading_animation(self):
+        """Update discovery loading dots animation"""
+        dots = "." * (self.loading_dots % 4)
+        self.discover_btn.setText(f"Discovering{dots}")
+        self.loading_dots += 1
     
     def _populate_device_table(self):
         """Populate device table with discovered devices"""
@@ -300,11 +316,6 @@ class RemotePanel(QFrame):
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
         
-        # Menu button - standard rounded button
-        self.menu_btn = self._create_standard_button("MENU", (160, 40))
-        self.menu_btn.clicked.connect(self._on_menu_pressed)
-        layout.addWidget(self.menu_btn, 0, Qt.AlignmentFlag.AlignCenter)
-        
         # Directional pad - responsive arrow layout with even spacing
         dpad_frame = QFrame()
         dpad_layout = QGridLayout(dpad_frame)
@@ -344,6 +355,11 @@ class RemotePanel(QFrame):
         dpad_layout.setRowStretch(2, 1)     # Bottom row
         
         layout.addWidget(dpad_frame)
+        
+        # Menu button - positioned above play/pause button
+        self.menu_btn = self._create_standard_button("MENU", (160, 40))
+        self.menu_btn.clicked.connect(self._on_menu_pressed)
+        layout.addWidget(self.menu_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
         # Media controls layout with volume pill on the right
         media_frame = QFrame()
@@ -434,7 +450,8 @@ class RemotePanel(QFrame):
         return volume_container
     
     def _apply_pill_styling(self):
-        """Apply pill button styling for connected volume buttons"""
+        """Apply seamless pill button styling for connected volume buttons"""
+        # Top button - only top corners rounded, perfect seamless connection
         pill_style_top = """
         QPushButton {
             background-color: qlineargradient(
@@ -443,12 +460,21 @@ class RemotePanel(QFrame):
                 stop: 1 #1a1a1a
             );
             border: 1px solid #444444;
-            border-top-left-radius: 15px;
-            border-top-right-radius: 15px;
-            border-bottom: none;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            border-bottom-left-radius: 0px;
+            border-bottom-right-radius: 0px;
+            border-bottom: none;  /* Remove border between buttons for seamless connection */
             color: #ffffff;
             font-size: 16px;
             font-weight: bold;
+        }
+        QPushButton:hover {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #3a3a3a,
+                stop: 1 #2a2a2a
+            );
         }
         QPushButton:pressed {
             background-color: qlineargradient(
@@ -459,6 +485,7 @@ class RemotePanel(QFrame):
         }
         """
         
+        # Bottom button - only bottom corners rounded, perfect seamless connection
         pill_style_bottom = """
         QPushButton {
             background-color: qlineargradient(
@@ -467,12 +494,21 @@ class RemotePanel(QFrame):
                 stop: 1 #1a1a1a
             );
             border: 1px solid #444444;
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-            border-top: none;
+            border-top-left-radius: 0px;
+            border-top-right-radius: 0px;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            border-top: none;  /* Remove border between buttons for seamless connection */
             color: #ffffff;
             font-size: 16px;
             font-weight: bold;
+        }
+        QPushButton:hover {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #3a3a3a,
+                stop: 1 #2a2a2a
+            );
         }
         QPushButton:pressed {
             background-color: qlineargradient(
@@ -487,29 +523,57 @@ class RemotePanel(QFrame):
         self.volume_down_btn.setStyleSheet(pill_style_bottom)
     
     def _setup_shortcuts(self):
-        """Setup keyboard shortcuts"""
+        """Setup keyboard shortcuts with visual feedback"""
         from PyQt6.QtGui import QShortcut, QKeySequence
         
-        # Arrow keys for navigation
-        QShortcut(QKeySequence(Qt.Key.Key_Up), self, self._on_up_pressed)
-        QShortcut(QKeySequence(Qt.Key.Key_Down), self, self._on_down_pressed)
-        QShortcut(QKeySequence(Qt.Key.Key_Left), self, self._on_left_pressed)
-        QShortcut(QKeySequence(Qt.Key.Key_Right), self, self._on_right_pressed)
+        # Arrow keys for navigation - with visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Up), self, lambda: self._handle_keyboard_with_animation(self.up_btn, self._on_up_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Down), self, lambda: self._handle_keyboard_with_animation(self.down_btn, self._on_down_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self, lambda: self._handle_keyboard_with_animation(self.left_btn, self._on_left_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self, lambda: self._handle_keyboard_with_animation(self.right_btn, self._on_right_pressed))
         
-        # Enter/Return for select
-        QShortcut(QKeySequence(Qt.Key.Key_Return), self, self._on_select_pressed)
-        QShortcut(QKeySequence(Qt.Key.Key_Enter), self, self._on_select_pressed)
+        # Enter/Return for select - with visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Return), self, lambda: self._handle_keyboard_with_animation(self.select_btn, self._on_select_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Enter), self, lambda: self._handle_keyboard_with_animation(self.select_btn, self._on_select_pressed))
         
-        # Space for play/pause
-        QShortcut(QKeySequence(Qt.Key.Key_Space), self, self._on_play_pause_pressed)
+        # Space for play/pause - with visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Space), self, lambda: self._handle_keyboard_with_animation(self.play_pause_btn, self._on_play_pause_pressed))
         
-        # M for menu, H for home
-        QShortcut(QKeySequence(Qt.Key.Key_M), self, self._on_menu_pressed)
-        QShortcut(QKeySequence(Qt.Key.Key_H), self, self._on_home_pressed)
+        # M for menu, H for home - with visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_M), self, lambda: self._handle_keyboard_with_animation(self.menu_btn, self._on_menu_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_H), self, lambda: self._handle_keyboard_with_animation(self.home_btn, self._on_home_pressed))
         
-        # Plus/Minus for volume
-        QShortcut(QKeySequence(Qt.Key.Key_Plus), self, self._on_volume_up_pressed)
-        QShortcut(QKeySequence(Qt.Key.Key_Minus), self, self._on_volume_down_pressed)
+        # Plus/Minus for volume - with visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Plus), self, lambda: self._handle_keyboard_with_animation(self.volume_up_btn, self._on_volume_up_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Minus), self, lambda: self._handle_keyboard_with_animation(self.volume_down_btn, self._on_volume_down_pressed))
+    
+    def _handle_keyboard_with_animation(self, button, action_method):
+        """Handle keyboard press with visual button animation"""
+        # Trigger visual button press animation
+        self._animate_button_press(button)
+        
+        # Execute the original action method without calling it again
+        # Since action_method already includes the animation, we need to call the signal emission directly
+        if button == self.up_btn:
+            self.up_pressed.emit()
+        elif button == self.down_btn:
+            self.down_pressed.emit()
+        elif button == self.left_btn:
+            self.left_pressed.emit()
+        elif button == self.right_btn:
+            self.right_pressed.emit()
+        elif button == self.select_btn:
+            self.select_pressed.emit()
+        elif button == self.play_pause_btn:
+            self.play_pause_pressed.emit()
+        elif button == self.menu_btn:
+            self.menu_pressed.emit()
+        elif button == self.home_btn:
+            self.home_pressed.emit()
+        elif button == self.volume_up_btn:
+            self.volume_up_pressed.emit()
+        elif button == self.volume_down_btn:
+            self.volume_down_pressed.emit()
     
     def _animate_button_press(self, button):
         """Enhanced button press animation with visual feedback"""
@@ -800,6 +864,9 @@ class ResponsiveMainWindow(QMainWindow):
         self.setMinimumSize(700, 500)
         self.resize(1200, 800)
         
+        # Set up application logo/icon
+        self._setup_application_logo()
+        
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -839,6 +906,26 @@ class ResponsiveMainWindow(QMainWindow):
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
         self.splitter.setStretchFactor(2, 1)
+    
+    def _setup_application_logo(self):
+        """Setup application logo integration"""
+        from PyQt6.QtGui import QIcon
+        import os
+        
+        # Set window icon using the existing app icon
+        icon_path = os.path.join(os.path.dirname(__file__), '..', 'resources', 'icons', 'app_icon.png')
+        if os.path.exists(icon_path):
+            app_icon = QIcon(icon_path)
+            self.setWindowIcon(app_icon)
+            
+            # Also set for the application instance
+            app = QApplication.instance()
+            if app:
+                app.setWindowIcon(app_icon)
+            
+            print(f"✅ Application logo loaded from: {icon_path}")
+        else:
+            print(f"⚠️ Application icon not found at: {icon_path}")
     
     def _connect_remote_signals(self):
         """Connect remote button signals to device actions"""
