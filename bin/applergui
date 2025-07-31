@@ -1,24 +1,44 @@
 #!/usr/bin/env python3
+"""
+Apple TV Remote GUI Launcher
+Ensures consistent behavior across all launch methods
+"""
 
 import sys
 import os
 import traceback
 
-# COMPLETELY SUPPRESS Qt logging - must be done BEFORE any Qt imports
-os.environ['QT_LOGGING_RULES'] = '*=false'
-os.environ['QT_DEBUG_PLUGINS'] = '0'
-os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
+def setup_environment():
+    """Setup consistent environment for all launch methods"""
+    # Ensure consistent working directory
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(script_dir)
+    
+    # Set consistent environment variables
+    os.environ['PYTHONPATH'] = script_dir
+    if 'DISPLAY' not in os.environ:
+        os.environ['DISPLAY'] = ':0'
+    
+    # Force Qt platform for consistency
+    os.environ['QT_QPA_PLATFORM'] = 'xcb'
+    
+    # COMPLETELY SUPPRESS Qt logging - must be done BEFORE any Qt imports
+    os.environ['QT_LOGGING_RULES'] = '*=false'
+    os.environ['QT_DEBUG_PLUGINS'] = '0'
+    os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
+    os.environ['QT_QUIET'] = '1'
+    os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
+    
+    # Add current directory to Python path
+    sys.path.insert(0, script_dir)
+    
+    return script_dir
 
-# Additional Qt environment variables to suppress ALL output
-os.environ['QT_QUIET'] = '1'
-os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
-
-# Add current directory to Python path
-applergui_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, applergui_dir)
+# Setup environment first
+applergui_dir = setup_environment()
 
 def check_dependencies():
-    """Check for required dependencies"""
+    """Check if all dependencies are available"""
     missing_deps = []
     
     try:
@@ -64,9 +84,25 @@ def check_dependencies():
         return False
     
     return True
+    try:
+        import keyring
+    except ImportError:
+        print("⚠️  Warning: keyring not available, using file-based credential storage")
+    
+    if missing_deps:
+        print("❌ Missing required dependencies:")
+        for dep in missing_deps:
+            print(f"   - {dep}")
+        print("\n💡 Install missing packages with:")
+        print(f"   pip3 install --user {' '.join(missing_deps)}")
+        print("\n🔧 Or run the full installation:")
+        print("   ./install.sh")
+        return False
+    
+    return True
 
 def main():
-    """Main application entry point with comprehensive error handling"""
+    """Main launcher function with unified environment setup"""
     
     # Handle debug mode
     debug_mode = "--debug" in sys.argv
@@ -88,20 +124,32 @@ def main():
         # SUPPRESS ALL Qt logging categories
         QLoggingCategory.setFilterRules("*=false")
         
-        from ui.main_window import MainWindow
+        from ui.main_window import ResponsiveMainWindow as MainWindow
         from backend.config_manager import ConfigManager
         from backend.device_controller import DeviceController
         from backend.pairing_manager import PairingManager
         
-        # Suppress Qt verbose logging for clean output
-        os.environ['QT_LOGGING_RULES'] = '*=false'
-        
         if debug_mode:
             print("✓ All imports successful")
         
-        print("🍎 Launching ApplerGUI with Apple TV support...")
+        print("🍎 Starting Apple TV Remote GUI...")
         
+        # Create and set up Qt application
         app = QApplication(sys.argv)
+        app.setApplicationName("Apple TV Remote GUI")
+        
+        # Force consistent styling regardless of launch method
+        app.setStyleSheet("""
+            QMainWindow {
+                background-color: #000000;
+                border: 2px solid #000000;
+                color: #ffffff;
+            }
+            QWidget {
+                background-color: #000000;
+                color: #ffffff;
+            }
+        """)
         
         # Setup async event loop integration
         loop = qasync.QEventLoop(app)
@@ -118,15 +166,36 @@ def main():
         if debug_mode:
             print("✓ Backend components initialized")
         
-        # Create main window
-        window = MainWindow(config_manager, device_controller, pairing_manager)
-        window.show()
-        
-        print("✅ ApplerGUI launched successfully with Apple TV support")
-        
-        # Run with async support
-        with loop:
-            loop.run_until_complete(app.exec())
+        # Create main window with error handling
+        try:
+            window = MainWindow(config_manager, device_controller, pairing_manager)
+            
+            # Apply consistent styling
+            window.setStyleSheet("""
+                QMainWindow {
+                    background-color: #000000;
+                    border: 2px solid #000000;
+                    color: #ffffff;
+                }
+                QWidget {
+                    background-color: #000000;
+                    color: #ffffff;
+                }
+            """)
+            
+            window.show()
+            
+            print("✅ ApplerGUI launched successfully with unified environment")
+            
+            # Run with async support
+            with loop:
+                loop.run_until_complete(app.exec())
+                
+        except Exception as window_error:
+            print(f"❌ Window creation error: {window_error}")
+            if debug_mode:
+                traceback.print_exc()
+            sys.exit(1)
         
     except ImportError as e:
         print(f"❌ Import error: {e}")
