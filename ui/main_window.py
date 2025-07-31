@@ -172,9 +172,57 @@ class DiscoveryPanel(QFrame):
             print(f"✅ Discovery completed: {device_count} device(s) found")
             
         except ImportError:
-            error_msg = "❌ Error: pyatv not installed. Install with: pip install pyatv"
-            self.status_label.setText(error_msg)
-            print(f"❌ {error_msg}")
+            # Fallback to atvremote command if pyatv not available
+            try:
+                import subprocess
+                print("📡 Fallback: Using atvremote scan...")
+                result = subprocess.run(['atvremote', 'scan'], 
+                                       capture_output=True, text=True, timeout=15)
+                
+                print(f"Scan output: {result.stdout}")
+                if result.stderr:
+                    print(f"Scan errors: {result.stderr}")
+                
+                # Parse atvremote output (basic parsing)
+                self.discovered_devices = []
+                if result.returncode == 0 and result.stdout:
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        if line.strip():
+                            # Basic parsing of atvremote output
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                device_info = {
+                                    "name": parts[0],
+                                    "model": "Apple TV",
+                                    "address": parts[1] if len(parts) > 1 else "Unknown",
+                                    "device": None
+                                }
+                                self.discovered_devices.append(device_info)
+                                print(f"📺 Found device: {device_info['name']} at {device_info['address']}")
+                
+                self._populate_device_table()
+                device_count = len(self.discovered_devices)
+                
+                if device_count > 0:
+                    self.status_label.setText(f"✅ Found {device_count} device(s) via atvremote")
+                else:
+                    self.status_label.setText("No Apple TV devices found via atvremote")
+                
+                print(f"✅ atvremote discovery completed: {device_count} device(s) found")
+                
+            except subprocess.TimeoutExpired:
+                error_msg = "❌ atvremote scan timed out"
+                self.status_label.setText(error_msg)
+                print(f"❌ {error_msg}")
+            except FileNotFoundError:
+                error_msg = "❌ Error: neither pyatv nor atvremote available"
+                self.status_label.setText(error_msg)
+                print(f"❌ {error_msg}")
+            except Exception as e:
+                error_msg = f"❌ atvremote error: {str(e)}"
+                self.status_label.setText(error_msg)
+                print(f"❌ {error_msg}")
         except Exception as e:
             error_msg = f"❌ Discovery error: {str(e)}"
             self.status_label.setText(error_msg)
@@ -1024,11 +1072,12 @@ class ResponsiveMainWindow(QMainWindow):
             print(f"Error sending {command} command: {str(e)}")
     
     def _apply_dark_oled_theme(self):
-        """Apply comprehensive dark OLED theme throughout the application"""
+        """Apply comprehensive dark OLED theme with BLACK borders throughout the application"""
         dark_oled_style = """
         QMainWindow {
             background-color: #000000;
             color: #ffffff;
+            border: 2px solid #000000;  /* BLACK border */
         }
         QWidget {
             background-color: #000000;
@@ -1036,7 +1085,7 @@ class ResponsiveMainWindow(QMainWindow):
         }
         QFrame {
             background-color: #000000;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK frames */
             border-radius: 8px;
         }
         QPushButton {
@@ -1045,7 +1094,7 @@ class ResponsiveMainWindow(QMainWindow):
                 stop: 0 #2a2a2a,
                 stop: 1 #1a1a1a
             );
-            border: 1px solid #444444;
+            border: 1px solid #000000;  /* BLACK border */
             border-radius: 8px;
             color: #ffffff;
             font-weight: bold;
@@ -1058,7 +1107,7 @@ class ResponsiveMainWindow(QMainWindow):
                 stop: 0 #3a3a3a,
                 stop: 1 #2a2a2a
             );
-            border-color: #666666;
+            border-color: #000000;  /* BLACK border */
         }
         QPushButton:pressed {
             background-color: qlineargradient(
@@ -1066,12 +1115,12 @@ class ResponsiveMainWindow(QMainWindow):
                 stop: 0 #1a1a1a,
                 stop: 1 #0a0a0a
             );
-            border-color: #888888;
+            border-color: #000000;  /* BLACK border */
         }
         QPushButton:disabled {
             background-color: #1a1a1a;
             color: #666666;
-            border-color: #333333;
+            border-color: #000000;  /* BLACK border */
         }
         QLabel {
             color: #ffffff;
@@ -1079,7 +1128,7 @@ class ResponsiveMainWindow(QMainWindow):
         }
         QGroupBox {
             color: #ffffff;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             border-radius: 6px;
             margin-top: 10px;
             background-color: #0a0a0a;
@@ -1094,13 +1143,13 @@ class ResponsiveMainWindow(QMainWindow):
         QTableWidget {
             background-color: #000000;
             color: #ffffff;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             selection-background-color: #444444;
             alternate-background-color: #0a0a0a;
-            gridline-color: #333333;
+            gridline-color: #000000;  /* BLACK gridlines */
         }
         QTableWidget::item {
-            border-bottom: 1px solid #333333;
+            border-bottom: 1px solid #000000;  /* BLACK border */
             padding: 5px;
         }
         QTableWidget::item:selected {
@@ -1110,12 +1159,12 @@ class ResponsiveMainWindow(QMainWindow):
         QHeaderView::section {
             background-color: #222222;
             color: #ffffff;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             padding: 5px;
             font-weight: bold;
         }
         QProgressBar {
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             border-radius: 3px;
             background-color: #000000;
             color: #ffffff;
@@ -1126,13 +1175,13 @@ class ResponsiveMainWindow(QMainWindow):
             border-radius: 2px;
         }
         QTabWidget::pane {
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             background-color: #000000;
         }
         QTabBar::tab {
             background-color: #222222;
             color: #ffffff;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             padding: 8px 16px;
             margin-right: 2px;
         }
@@ -1144,14 +1193,14 @@ class ResponsiveMainWindow(QMainWindow):
             background-color: #333333;
         }
         QSlider::groove:horizontal {
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             height: 4px;
             background-color: #222222;
             border-radius: 2px;
         }
         QSlider::handle:horizontal {
             background-color: #007acc;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             width: 16px;
             border-radius: 8px;
             margin: -6px 0;
@@ -1160,7 +1209,7 @@ class ResponsiveMainWindow(QMainWindow):
             background-color: #0099ff;
         }
         QSplitter::handle {
-            background-color: #333333;
+            background-color: #000000;  /* BLACK handle */
         }
         QSplitter::handle:horizontal {
             width: 3px;
@@ -1170,7 +1219,7 @@ class ResponsiveMainWindow(QMainWindow):
         }
         QLineEdit {
             background-color: #222222;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
             border-radius: 4px;
             color: #ffffff;
             padding: 5px;
@@ -1181,12 +1230,12 @@ class ResponsiveMainWindow(QMainWindow):
         QStatusBar {
             background-color: #000000;
             color: #ffffff;
-            border-top: 1px solid #333333;
+            border-top: 1px solid #000000;  /* BLACK border */
         }
         QMenuBar {
             background-color: #222222;
             color: #ffffff;
-            border-bottom: 1px solid #333333;
+            border-bottom: 1px solid #000000;  /* BLACK border */
         }
         QMenuBar::item {
             background-color: transparent;
@@ -1198,7 +1247,7 @@ class ResponsiveMainWindow(QMainWindow):
         QMenu {
             background-color: #222222;
             color: #ffffff;
-            border: 1px solid #333333;
+            border: 1px solid #000000;  /* BLACK border */
         }
         QMenu::item {
             padding: 5px 20px;

@@ -1,34 +1,75 @@
 #!/bin/bash
-# ApplerGUI Update Script with matching terminal design
+# ApplerGUI Professional Update Script - Matching installer design
 
-# Import color definitions and functions
-source "$(dirname "$0")/installer_functions.sh" 2>/dev/null || {
-    # Fallback color definitions
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    PURPLE='\033[0;35m'
-    GRAY='\033[90m'
-    BOLD='\033[1m'
-    NC='\033[0m'
-    
-    print_info() { echo -e "${BLUE}→${NC} $1"; }
-    print_success() { echo -e "${GREEN}✓${NC} $1"; }
-    print_error() { echo -e "${RED}✗${NC} $1"; }
-    print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+set -e  # Exit on error, but handle gracefully
+
+# Enhanced color palette for professional UI (matching install.sh)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+BOLD='\033[1m'
+DIM='\033[2m'
+GRAY='\033[90m'
+NC='\033[0m' # No Color
+
+# Functions for enhanced colored output (matching install.sh)
+print_success() { echo -e "${GREEN}✓${NC} $1"; }
+print_error() { echo -e "${RED}✗${NC} $1"; }
+print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+print_info() { echo -e "${BLUE}→${NC} $1"; }
+print_header() { echo -e "${CYAN}${BOLD}$1${NC}"; }
+print_section() { 
+    echo -e "\n${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${PURPLE}${BOLD} $1${NC}"
+    echo -e "${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 }
 
+# Clean section display with proper clearing (matching install.sh)
 show_section() {
-    clear  # Clear terminal for clean section display
-    echo ""
+    local title="$1"
+    clear
+    echo -e "${PURPLE}"
+    cat << EOF
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║   🍎 ApplerGUI Professional Update Manager                                 ║
+║                                                                            ║
+║   Modern Linux GUI for Apple TV & HomePod Control                         ║
+║                                                                            ║
+║   ✨ Automated Update with Smart Dependency Management                     ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}\n"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE} $1${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
+    echo -e "${BLUE} $title${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 }
 
-# Enhanced spinner with complete output isolation and logging
+# Clear terminal and show fancy banner (matching install.sh)
+clear_and_banner() {
+    clear
+    echo -e "${PURPLE}"
+    cat << 'EOF'
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║   🍎 ApplerGUI Professional Update Manager                                 ║
+║                                                                            ║
+║   Modern Linux GUI for Apple TV & HomePod Control                         ║
+║                                                                            ║
+║   ✨ Automated Update with Smart Dependency Management                     ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}\n"
+    echo -e "${GRAY}Version 2.0 • Professional Update Experience${NC}"
+    echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+}
+
+# Enhanced spinner with complete output isolation and logging (matching install.sh style)
 show_spinner_isolated() {
     local pid=$1
     local message="$2"
@@ -91,21 +132,47 @@ ask_yn() {
     done
 }
 
-main() {
-    clear
+# Self-update functionality
+self_update() {
+    clear_and_banner
+    show_section "🔄 SELF-UPDATE"
     
-    # Show update header
-    echo -e "${GREEN}"
-    cat << 'EOF'
-╔════════════════════════════════════════════════════════════════════════════╗
-║                                                                            ║
-║   🔄 ApplerGUI Update Manager                                              ║
-║                                                                            ║
-║   Keeping your Apple TV & HomePod Control up to date                      ║
-║                                                                            ║
-╚════════════════════════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}"
+    print_info "Updating the update script itself..."
+    
+    local script_url="https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh"
+    local temp_script="/tmp/update_new.sh"
+    
+    # Download new script
+    {
+        curl -fsSL "$script_url" > "$temp_script"
+    } &
+    local download_pid=$!
+    
+    show_spinner_isolated $download_pid "Downloading latest update script"
+    
+    if [[ $? -eq 0 && -s "$temp_script" ]]; then
+        # Replace current script
+        chmod +x "$temp_script"
+        mv "$temp_script" "$0"
+        
+        print_success "✅ Update script updated successfully!"
+        print_info "🚀 Restart the update to use the new version"
+        exit 0
+    else
+        print_error "✗ Failed to download update script"
+        rm -f "$temp_script"
+        exit 1
+    fi
+}
+
+main() {
+    # Check for self-update flag first
+    if [[ "$1" == "--self-update" ]]; then
+        self_update
+        return
+    fi
+    
+    clear_and_banner
     
     APP_DIR="$(cd "$(dirname "$0")" && pwd)"
     REPO_URL="https://github.com/ZProLegend007/ApplerGUI.git"
@@ -132,7 +199,7 @@ EOF
         exit 1
     fi
     
-    print_info "→ 🔍 Fetching latest version information..."
+    print_info "🔍 Fetching latest version information..."
     
     # Fetch with hidden output
     {
@@ -155,6 +222,8 @@ EOF
     if [[ "$LOCAL_COMMIT" == "$REMOTE_COMMIT" ]]; then
         print_success "✅ ApplerGUI is already up to date!"
         print_info "📦 Current version: $(git describe --tags --always 2>/dev/null || echo 'unknown')"
+        print_info ""
+        print_info "💡 To update the update script itself, run: ./update.sh --self-update"
         exit 0
     fi
     
@@ -172,7 +241,7 @@ EOF
     show_section "🔄 UPDATING APPLICATION"
     
     # Backup current installation
-    print_info "→ 💾 Creating backup..."
+    print_info "💾 Creating backup..."
     BACKUP_DIR="$APP_DIR.backup.$(date +%Y%m%d_%H%M%S)"
     
     {
@@ -183,7 +252,7 @@ EOF
     show_spinner_isolated $backup_pid "Creating backup"
     
     # Pull latest changes
-    print_info "→ 📥 Downloading updates..."
+    print_info "📥 Downloading updates..."
     
     {
         git pull origin main >>"$UPDATE_LOG" 2>&1
@@ -211,7 +280,7 @@ EOF
     fi
     
     # Reinstall dependencies
-    print_info "→ 📦 Updating dependencies..."
+    print_info "📦 Updating dependencies..."
     
     source venv/bin/activate || {
         print_error "✗ Failed to activate virtual environment"
@@ -228,7 +297,7 @@ EOF
     
     if [[ $? -eq 0 ]]; then
         # Run Qt connection check
-        print_info "→ 🔧 Verifying Qt connections..."
+        print_info "🔧 Verifying Qt connections..."
         
         {
             python3 qt_connection_fix.py >>"$UPDATE_LOG" 2>&1
@@ -244,8 +313,10 @@ EOF
         
         print_success "✅ ApplerGUI updated successfully!"
         print_info "📦 New version: $(git describe --tags --always 2>/dev/null || echo 'latest')"
-        print_info "💡 Launch with: applergui"
+        print_info "🚀 Launch with: applergui"
         print_info "📊 Update log: $UPDATE_LOG"
+        print_info ""
+        print_info "💡 To update this script: ./update.sh --self-update"
         
     else
         print_error "✗ Failed to update dependencies"
@@ -258,6 +329,7 @@ EOF
         print_info "💡 Check update log: $UPDATE_LOG"
         exit 1
     fi
+}
 }
 
 main "$@"
