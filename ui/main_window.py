@@ -24,7 +24,7 @@ from backend.device_controller import DeviceController
 from backend.pairing_manager import PairingManager
 
 class DiscoveryPanel(QFrame):
-    """Integrated device discovery panel with current main window styling"""
+    """Device discovery panel with real pyatv backend integration"""
     
     device_selected = pyqtSignal(dict)
     pairing_requested = pyqtSignal(dict)
@@ -34,83 +34,116 @@ class DiscoveryPanel(QFrame):
         self.config_manager = config_manager
         self.discovered_devices = []
         self.selected_device = None
+        self.current_device = None  # Currently connected device
         self._setup_ui()
     
     def _setup_ui(self):
-        """Setup discovery panel with consistent main window styling"""
-        # Use existing main window frame styling
+        """Setup discovery panel with current device status"""
         self.setFrameStyle(QFrame.Shape.Box)
         self.setLineWidth(1)
         
         # Ensure minimum size for visibility
-        self.setMinimumSize(250, 400)
+        self.setMinimumSize(300, 400)
+        self.setSizePolicy(self.sizePolicy().Expanding, self.sizePolicy().Expanding)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
         
-        # Header - match existing style
+        # Header
         header = QLabel("Device Discovery")
         header.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         layout.addWidget(header)
+        
+        # Currently connected device section
+        connected_group = QGroupBox("Currently Connected")
+        connected_layout = QVBoxLayout(connected_group)
+        
+        self.connected_device_label = QLabel("No device connected")
+        self.connected_device_label.setStyleSheet("font-weight: bold; color: #333;")
+        connected_layout.addWidget(self.connected_device_label)
+        
+        self.connected_status_label = QLabel("Status: Disconnected")
+        self.connected_status_label.setStyleSheet("color: #666; font-size: 11px;")
+        connected_layout.addWidget(self.connected_status_label)
+        
+        # Disconnect button
+        self.disconnect_btn = self._create_clean_button("Disconnect")
+        self.disconnect_btn.setEnabled(False)
+        self.disconnect_btn.clicked.connect(self._disconnect_device)
+        connected_layout.addWidget(self.disconnect_btn)
+        
+        layout.addWidget(connected_group)
         
         # Status label
         self.status_label = QLabel("Ready to discover devices...")
         layout.addWidget(self.status_label)
         
-        # Discover button - improved styling
-        self.discover_btn = self._create_modern_button("Discover Apple TVs")
+        # Discover button
+        self.discover_btn = self._create_clean_button("Discover Apple TVs")
         self.discover_btn.clicked.connect(self._start_discovery)
         layout.addWidget(self.discover_btn)
         
-        # Progress bar - match existing style
+        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
         
         # Device list group
-        devices_group = QGroupBox("Discovered Devices")
+        devices_group = QGroupBox("Available Devices")
         devices_layout = QVBoxLayout(devices_group)
         
-        # Device table - match existing table styling
+        # Device table
         self.devices_table = QTableWidget()
-        self.devices_table.setColumnCount(2)
-        self.devices_table.setHorizontalHeaderLabels(["Device Name", "Model"])
+        self.devices_table.setColumnCount(3)
+        self.devices_table.setHorizontalHeaderLabels(["Device Name", "Model", "Address"])
         self.devices_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.devices_table.verticalHeader().setVisible(False)
         self.devices_table.setAlternatingRowColors(True)
         self.devices_table.itemSelectionChanged.connect(self._on_device_selected)
-        # Set minimum size for table
         self.devices_table.setMinimumHeight(150)
         devices_layout.addWidget(self.devices_table)
         
-        # Pair button
-        self.pair_btn = self._create_modern_button("Pair Selected Device")
-        self.pair_btn.setEnabled(False)
-        self.pair_btn.clicked.connect(self._request_pairing)
-        devices_layout.addWidget(self.pair_btn)
+        # Connect button
+        self.connect_btn = self._create_clean_button("Connect to Selected Device")
+        self.connect_btn.setEnabled(False)
+        self.connect_btn.clicked.connect(self._connect_device)
+        devices_layout.addWidget(self.connect_btn)
         
         layout.addWidget(devices_group)
         layout.addStretch()
     
-    def _create_modern_button(self, text):
-        """Create modern rounded button with clean styling"""
+    def _create_clean_button(self, text):
+        """Create clean button with consistent styling"""
         button = QPushButton(text)
         button.setStyleSheet("""
             QPushButton {
-                background-color: #f0f0f0;
-                border: 1px solid #ccc;
-                border-radius: 8px;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #f0f0f0,
+                    stop: 1 #e0e0e0
+                );
+                border: 1px solid #a0a0a0;
+                border-radius: 6px;
                 padding: 8px 16px;
-                font-weight: bold;
-                min-height: 32px;
+                font-weight: normal;
+                min-height: 28px;
+                color: #333;
             }
             QPushButton:hover {
-                background-color: #e0e0e0;
-                border-color: #999;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #e8e8e8,
+                    stop: 1 #d8d8d8
+                );
+                border-color: #808080;
             }
             QPushButton:pressed {
-                background-color: #d0d0d0;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #d0d0d0,
+                    stop: 1 #c0c0c0
+                );
             }
             QPushButton:disabled {
                 background-color: #f8f8f8;
@@ -120,41 +153,53 @@ class DiscoveryPanel(QFrame):
         """)
         return button
     
-    def _start_discovery(self):
-        """Start device discovery"""
+    async def _start_discovery(self):
+        """Start real device discovery using pyatv"""
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)  # Indeterminate
         self.status_label.setText("Scanning for Apple TV devices...")
         self.discover_btn.setEnabled(False)
-        
-        # TODO: Implement actual discovery logic
-        # For now, simulate discovery
-        QTimer.singleShot(2000, self._simulate_discovery_complete)
-    
-    def _simulate_discovery_complete(self):
-        """Simulate discovery completion"""
-        # Add sample devices
-        sample_devices = [
-            {"name": "Living Room Apple TV", "model": "Apple TV 4K"},
-            {"name": "Bedroom Apple TV", "model": "Apple TV HD"},
-            {"name": "Kitchen HomePod", "model": "HomePod Mini"}
-        ]
-        
-        self.discovered_devices = sample_devices
+        self.discovered_devices.clear()
         self._populate_device_table()
         
-        self.progress_bar.setVisible(False)
-        self.discover_btn.setEnabled(True)
-        self.status_label.setText(f"Found {len(sample_devices)} device(s)")
+        try:
+            import pyatv
+            
+            # Real device discovery
+            devices = await pyatv.scan(timeout=5)
+            
+            self.discovered_devices = []
+            for device in devices:
+                device_info = {
+                    "name": device.name,
+                    "model": str(device.device_info.model) if device.device_info else "Unknown",
+                    "address": str(device.address),
+                    "device": device  # Store the actual pyatv device object
+                }
+                self.discovered_devices.append(device_info)
+            
+            self._populate_device_table()
+            self.status_label.setText(f"Found {len(self.discovered_devices)} device(s)")
+            
+        except ImportError:
+            self.status_label.setText("Error: pyatv not installed")
+        except Exception as e:
+            self.status_label.setText(f"Discovery error: {str(e)}")
+        finally:
+            self.progress_bar.setVisible(False)
+            self.discover_btn.setEnabled(True)
     
     def _populate_device_table(self):
-        """Populate device table"""
+        """Populate device table with discovered devices"""
         self.devices_table.setRowCount(len(self.discovered_devices))
         for row, device in enumerate(self.discovered_devices):
             name_item = QTableWidgetItem(device['name'])
             model_item = QTableWidgetItem(device['model'])
+            address_item = QTableWidgetItem(device['address'])
+            
             self.devices_table.setItem(row, 0, name_item)
             self.devices_table.setItem(row, 1, model_item)
+            self.devices_table.setItem(row, 2, address_item)
         
         self.devices_table.resizeColumnsToContents()
     
@@ -164,18 +209,71 @@ class DiscoveryPanel(QFrame):
         if selected_rows:
             row = selected_rows[0].row()
             self.selected_device = self.discovered_devices[row]
-            self.pair_btn.setEnabled(True)
+            self.connect_btn.setEnabled(True)
         else:
             self.selected_device = None
-            self.pair_btn.setEnabled(False)
+            self.connect_btn.setEnabled(False)
     
-    def _request_pairing(self):
-        """Request device pairing"""
-        if self.selected_device:
-            self.pairing_requested.emit(self.selected_device)
+    async def _connect_device(self):
+        """Connect to selected device"""
+        if not self.selected_device:
+            return
+        
+        try:
+            import pyatv
+            
+            self.status_label.setText(f"Connecting to {self.selected_device['name']}...")
+            self.connect_btn.setEnabled(False)
+            
+            # Connect to the device
+            device = self.selected_device['device']
+            atv = await pyatv.connect(device, loop=None)
+            
+            # Update current device status
+            self.current_device = {
+                'name': self.selected_device['name'],
+                'model': self.selected_device['model'],
+                'address': self.selected_device['address'],
+                'atv': atv
+            }
+            
+            self._update_connected_device_display()
+            self.status_label.setText(f"Successfully connected to {self.selected_device['name']}")
+            
+        except Exception as e:
+            self.status_label.setText(f"Connection failed: {str(e)}")
+        finally:
+            self.connect_btn.setEnabled(True)
+    
+    def _disconnect_device(self):
+        """Disconnect from current device"""
+        if self.current_device and 'atv' in self.current_device:
+            try:
+                self.current_device['atv'].close()
+            except:
+                pass
+        
+        self.current_device = None
+        self._update_connected_device_display()
+        self.status_label.setText("Disconnected from device")
+    
+    def _update_connected_device_display(self):
+        """Update the connected device display"""
+        if self.current_device:
+            self.connected_device_label.setText(f"📺 {self.current_device['name']}")
+            self.connected_status_label.setText(f"Status: Connected ({self.current_device['model']})")
+            self.disconnect_btn.setEnabled(True)
+        else:
+            self.connected_device_label.setText("No device connected")
+            self.connected_status_label.setText("Status: Disconnected")
+            self.disconnect_btn.setEnabled(False)
+    
+    def get_current_device(self):
+        """Get the currently connected device"""
+        return self.current_device
 
 class RemotePanel(QFrame):
-    """Apple TV remote control panel with consistent styling"""
+    """Apple TV remote control panel with improved modern design"""
     
     # Remote control signals
     menu_pressed = pyqtSignal()
@@ -196,17 +294,17 @@ class RemotePanel(QFrame):
         self._setup_shortcuts()
     
     def _setup_ui(self):
-        """Setup remote control UI with modern styling"""
-        # Use existing main window frame styling
+        """Setup remote control UI with improved modern design"""
         self.setFrameStyle(QFrame.Shape.Box)
         self.setLineWidth(1)
         
         # Ensure minimum size for visibility
-        self.setMinimumSize(250, 400)
+        self.setMinimumSize(300, 500)  # Increased height for shortcuts
+        self.setSizePolicy(self.sizePolicy().Expanding, self.sizePolicy().Expanding)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(15)
+        layout.setSpacing(20)
         
         # Header
         header = QLabel("Apple TV Remote")
@@ -214,144 +312,131 @@ class RemotePanel(QFrame):
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
         
-        # Menu button - clean neutral
-        self.menu_btn = self._create_remote_button("MENU", (180, 45))
+        # Menu button - standard rounded button
+        self.menu_btn = self._create_standard_button("MENU", (160, 40))
         self.menu_btn.clicked.connect(self._on_menu_pressed)
         layout.addWidget(self.menu_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
-        # Directional pad
+        # Directional pad - improved box layout
         dpad_frame = QFrame()
         dpad_layout = QGridLayout(dpad_frame)
-        dpad_layout.setSpacing(8)
-        dpad_layout.setContentsMargins(10, 10, 10, 10)
+        dpad_layout.setSpacing(12)  # More even spacing
+        dpad_layout.setContentsMargins(20, 20, 20, 20)
         
-        # Create directional buttons with modern styling
-        self.up_btn = self._create_dpad_button("↑")
+        # Create directional buttons with consistent sizing and modern layout
+        button_size = 50
+        
+        self.up_btn = self._create_standard_button("↑", (button_size, button_size))
         self.up_btn.clicked.connect(self._on_up_pressed)
         dpad_layout.addWidget(self.up_btn, 0, 1, Qt.AlignmentFlag.AlignCenter)
         
-        self.left_btn = self._create_dpad_button("←")
+        self.left_btn = self._create_standard_button("←", (button_size, button_size))
         self.left_btn.clicked.connect(self._on_left_pressed)
         dpad_layout.addWidget(self.left_btn, 1, 0, Qt.AlignmentFlag.AlignCenter)
         
-        self.select_btn = self._create_dpad_button("SELECT", (80, 80))
+        # OK button in center - standard rounded button (not circular)
+        self.select_btn = self._create_standard_button("OK", (60, 60))
         self.select_btn.clicked.connect(self._on_select_pressed)
         dpad_layout.addWidget(self.select_btn, 1, 1, Qt.AlignmentFlag.AlignCenter)
         
-        self.right_btn = self._create_dpad_button("→")
+        self.right_btn = self._create_standard_button("→", (button_size, button_size))
         self.right_btn.clicked.connect(self._on_right_pressed)
         dpad_layout.addWidget(self.right_btn, 1, 2, Qt.AlignmentFlag.AlignCenter)
         
-        self.down_btn = self._create_dpad_button("↓")
+        self.down_btn = self._create_standard_button("↓", (button_size, button_size))
         self.down_btn.clicked.connect(self._on_down_pressed)
         dpad_layout.addWidget(self.down_btn, 2, 1, Qt.AlignmentFlag.AlignCenter)
         
         layout.addWidget(dpad_frame)
         
-        # Media controls
+        # Media controls - evenly spaced
         media_frame = QFrame()
         media_layout = QHBoxLayout(media_frame)
-        media_layout.setSpacing(15)
-        media_layout.setContentsMargins(10, 10, 10, 10)
+        media_layout.setSpacing(20)
+        media_layout.setContentsMargins(20, 10, 20, 10)
         
-        self.play_pause_btn = self._create_media_button("⏯")
+        self.play_pause_btn = self._create_standard_button("⏯", (50, 50))
         self.play_pause_btn.clicked.connect(self._on_play_pause_pressed)
         media_layout.addWidget(self.play_pause_btn)
         
-        self.volume_up_btn = self._create_media_button("🔊")
+        self.volume_up_btn = self._create_standard_button("🔊", (50, 50))
         self.volume_up_btn.clicked.connect(self._on_volume_up_pressed)
         media_layout.addWidget(self.volume_up_btn)
         
-        self.volume_down_btn = self._create_media_button("🔇")
+        self.volume_down_btn = self._create_standard_button("🔇", (50, 50))
         self.volume_down_btn.clicked.connect(self._on_volume_down_pressed)
         media_layout.addWidget(self.volume_down_btn)
         
         layout.addWidget(media_frame)
         
-        # Home button - clean neutral
-        self.home_btn = self._create_remote_button("HOME", (180, 45))
+        # Home button
+        self.home_btn = self._create_standard_button("HOME", (160, 40))
         self.home_btn.clicked.connect(self._on_home_pressed)
         layout.addWidget(self.home_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
+        # Keyboard shortcuts info section
+        shortcuts_group = QGroupBox("Keyboard Shortcuts")
+        shortcuts_layout = QVBoxLayout(shortcuts_group)
+        shortcuts_layout.setSpacing(5)
+        
+        shortcuts_text = [
+            "Arrow Keys: Navigation",
+            "Enter/Return: OK/Select",
+            "Space: Play/Pause",
+            "M: Menu",
+            "H: Home",
+            "+/-: Volume Up/Down"
+        ]
+        
+        for shortcut in shortcuts_text:
+            shortcut_label = QLabel(shortcut)
+            shortcut_label.setStyleSheet("font-size: 11px; color: #666;")
+            shortcuts_layout.addWidget(shortcut_label)
+        
+        layout.addWidget(shortcuts_group)
         layout.addStretch()
     
-    def _create_remote_button(self, text, size=(180, 45)):
-        """Create clean neutral remote button"""
+    def _create_standard_button(self, text, size=(50, 50)):
+        """Create standard Qt button with consistent rounded styling"""
         button = QPushButton(text)
         button.setFixedSize(*size)
-        button.setFont(QFont("Arial", 11, QFont.Weight.Bold))
         
-        # Clean neutral styling - NO COLORS
+        # Set appropriate font size based on button size
+        if size[0] >= 160:  # Large buttons (MENU, HOME)
+            button.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        elif size[0] >= 60:  # Medium buttons (OK)
+            button.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        else:  # Small buttons (arrows, media)
+            button.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        
+        # Standard Qt button styling with consistent rounded corners
         button.setStyleSheet("""
             QPushButton {
-                background-color: #f8f8f8;
-                border: 1px solid #ccc;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #f0f0f0,
+                    stop: 1 #e0e0e0
+                );
+                border: 1px solid #a0a0a0;
+                border-radius: 8px;
                 color: #333;
-                border-radius: 12px;
                 font-weight: bold;
-                font-size: 11px;
             }
             QPushButton:hover {
-                background-color: #f0f0f0;
-                border-color: #aaa;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #e8e8e8,
+                    stop: 1 #d8d8d8
+                );
+                border-color: #808080;
             }
             QPushButton:pressed {
-                background-color: #e8e8e8;
-                border-color: #999;
-            }
-        """)
-        return button
-    
-    def _create_dpad_button(self, text, size=(60, 60)):
-        """Create clean neutral directional pad button"""
-        button = QPushButton(text)
-        button.setFixedSize(*size)
-        button.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        
-        # Clean neutral circular styling - NO COLORS
-        radius = min(size) // 2
-        button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: #f8f8f8;
-                border: 1px solid #ccc;
-                color: #333;
-                border-radius: {radius}px;
-                font-weight: bold;
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-                background-color: #f0f0f0;
-                border-color: #aaa;
-            }}
-            QPushButton:pressed {{
-                background-color: #e8e8e8;
-                border-color: #999;
-            }}
-        """)
-        return button
-    
-    def _create_media_button(self, text):
-        """Create clean neutral media control button"""
-        button = QPushButton(text)
-        button.setFixedSize(55, 55)
-        button.setFont(QFont("Arial", 18))
-        
-        # Clean neutral circular styling - NO COLORS
-        button.setStyleSheet("""
-            QPushButton {
-                background-color: #f8f8f8;
-                border: 1px solid #ccc;
-                color: #333;
-                border-radius: 27px;
-                font-size: 18px;
-            }
-            QPushButton:hover {
-                background-color: #f0f0f0;
-                border-color: #aaa;
-            }
-            QPushButton:pressed {
-                background-color: #e8e8e8;
-                border-color: #999;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #d0d0d0,
+                    stop: 1 #c0c0c0
+                );
+                border-color: #606060;
             }
         """)
         return button
@@ -380,6 +465,44 @@ class RemotePanel(QFrame):
         # Plus/Minus for volume
         QShortcut(QKeySequence(Qt.Key.Key_Plus), self, self._on_volume_up_pressed)
         QShortcut(QKeySequence(Qt.Key.Key_Minus), self, self._on_volume_down_pressed)
+    
+    def _animate_button_press(self, button):
+        """Enhanced button press animation with visual feedback"""
+        button_id = id(button)
+        
+        # Cancel existing animation
+        if button_id in self.button_animations:
+            animation = self.button_animations[button_id]
+            if animation.state() == QPropertyAnimation.State.Running:
+                animation.stop()
+        
+        # Create press animation with more obvious visual feedback
+        original_style = button.styleSheet()
+        
+        # Highlight effect
+        pressed_style = """
+            QPushButton {
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #b0b0ff,
+                    stop: 1 #9090ff
+                );
+                border: 2px solid #6060ff;
+                border-radius: 8px;
+                color: #000;
+                font-weight: bold;
+            }
+        """
+        
+        animation = QPropertyAnimation(button, b"styleSheet")
+        animation.setDuration(150)
+        animation.setStartValue(pressed_style)
+        animation.setEndValue(original_style)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        
+        self.button_animations[button_id] = animation
+        animation.finished.connect(lambda: self.button_animations.pop(button_id, None))
+        animation.start()
     
     def _on_menu_pressed(self):
         """Handle menu button press"""
@@ -430,32 +553,6 @@ class RemotePanel(QFrame):
         """Handle volume down button press"""
         self._animate_button_press(self.volume_down_btn)
         self.volume_down_pressed.emit()
-    
-    def _animate_button_press(self, button):
-        """Clean button press animation without colors"""
-        button_id = id(button)
-        
-        # Cancel existing animation
-        if button_id in self.button_animations:
-            animation = self.button_animations[button_id]
-            if animation.state() == QPropertyAnimation.State.Running:
-                animation.stop()
-        
-        # Simple press animation - just briefly darker gray
-        original_style = button.styleSheet()
-        pressed_style = original_style.replace(
-            "background-color: #f8f8f8", "background-color: #e0e0e0"
-        )
-        
-        animation = QPropertyAnimation(button, b"styleSheet")
-        animation.setDuration(100)
-        animation.setStartValue(pressed_style)
-        animation.setEndValue(original_style)
-        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-        
-        self.button_animations[button_id] = animation
-        animation.finished.connect(lambda: self.button_animations.pop(button_id, None))
-        animation.start()
 
 class NowPlayingPanel(QFrame):
     """Now playing information panel with consistent styling"""
@@ -628,56 +725,47 @@ class NowPlayingPanel(QFrame):
         self.artist_label.setText(artist)
         self.album_label.setText(album)
 
-class MainWindow(QMainWindow):
-    """Main window with responsive layout maintaining current aesthetic"""
+class ResponsiveMainWindow(QMainWindow):
+    """Main window with backend integration"""
     
-    def __init__(self, config_manager: ConfigManager, 
-                 device_controller: DeviceController,
-                 pairing_manager: PairingManager):
+    def __init__(self, config_manager=None, device_controller=None, pairing_manager=None):
         super().__init__()
-        
         self.config_manager = config_manager
         self.device_controller = device_controller
         self.pairing_manager = pairing_manager
         
-        # Enable multithreading
-        self.thread_pool = QThreadPool()
-        self.thread_pool.setMaxThreadCount(4)  # Allow multiple background tasks
-        
-        self.pairing_dialog_manager = PairingDialogManager(self.pairing_manager, self)
-        
-        # Responsive settings - more conservative breakpoint
+        # Responsive settings
         self.is_compact_mode = False
-        self.min_width_for_sections = 900  # Increased for better layout
+        self.min_width_for_sections = 900
         
         self._setup_ui()
-        self._setup_connections()
-        self._apply_theme()
-        self._setup_smooth_transitions()
         self._setup_responsive_behavior()
         
-        # Force initial layout check
+        # Critical: Force initial layout check AFTER panels are created
         QTimer.singleShot(100, self._force_initial_layout)
-        
-        # Update timer for UI refresh
-        self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self._update_ui)
-        self.update_timer.start(5000)  # Update every 5 seconds
     
     def _setup_ui(self):
-        """Setup main window UI with fixed layout issues"""
+        """Setup main window UI with backend integration"""
         self.setWindowTitle("ApplerGUI - Apple TV Remote Control")
-        self.setMinimumSize(700, 500)  # Increased minimum size
-        self.resize(1200, 800)  # Larger default size for better layout
+        self.setMinimumSize(700, 500)
+        self.resize(1200, 800)
         
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Main layout container
+        # Main layout
         self.main_layout = QVBoxLayout(central_widget)
         self.main_layout.setContentsMargins(8, 8, 8, 8)
         self.main_layout.setSpacing(5)
+        
+        # Create panels FIRST
+        self.discovery_panel = DiscoveryPanel(self.config_manager)
+        self.remote_panel = RemotePanel()
+        self.now_playing_panel = NowPlayingPanel()
+        
+        # Connect remote buttons to device actions
+        self._connect_remote_signals()
         
         # Tab widget (hidden initially)
         self.tab_widget = QTabWidget()
@@ -686,55 +774,107 @@ class MainWindow(QMainWindow):
         
         # Three-section splitter (visible initially)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.splitter.setHandleWidth(3)  # Visible splitter handles
+        self.splitter.setHandleWidth(4)
         self.main_layout.addWidget(self.splitter)
         
-        # Create panels with minimum sizes
-        self.discovery_panel = DiscoveryPanel(self.config_manager)
-        self.remote_panel = RemotePanel()
-        self.now_playing_panel = NowPlayingPanel()
-        
-        # Add panels to splitter initially (don't add to tabs yet - only one container at a time)
+        # Add panels to splitter IMMEDIATELY
         self.splitter.addWidget(self.discovery_panel)
         self.splitter.addWidget(self.remote_panel)
         self.splitter.addWidget(self.now_playing_panel)
         
-        # Set initial sizes - ensure visibility with larger default sizes
+        # Set sizes IMMEDIATELY after adding widgets
         self.splitter.setSizes([400, 400, 400])
+        
+        # Configure stretch factors
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
         self.splitter.setStretchFactor(2, 1)
-        
-        # Connect signals
-        if self.discovery_panel:
-            self.discovery_panel.pairing_requested.connect(self._handle_pairing_request)
-        
-        # Create menu bar
-        self._create_menu_bar()
-        
-        # Create status bar
-        self._create_status_bar()
     
-    def _force_initial_layout(self):
-        """Force initial layout mode to ensure visibility"""
-        self._update_layout_mode()
+    def _connect_remote_signals(self):
+        """Connect remote button signals to device actions"""
+        self.remote_panel.menu_pressed.connect(self._send_menu_command)
+        self.remote_panel.home_pressed.connect(self._send_home_command)
+        self.remote_panel.select_pressed.connect(self._send_select_command)
+        self.remote_panel.up_pressed.connect(self._send_up_command)
+        self.remote_panel.down_pressed.connect(self._send_down_command)
+        self.remote_panel.left_pressed.connect(self._send_left_command)
+        self.remote_panel.right_pressed.connect(self._send_right_command)
+        self.remote_panel.play_pause_pressed.connect(self._send_play_pause_command)
+        self.remote_panel.volume_up_pressed.connect(self._send_volume_up_command)
+        self.remote_panel.volume_down_pressed.connect(self._send_volume_down_command)
+    
+    async def _send_menu_command(self):
+        """Send menu command to connected device"""
+        await self._send_remote_command("menu")
+    
+    async def _send_home_command(self):
+        """Send home command to connected device"""
+        await self._send_remote_command("home")
+    
+    async def _send_select_command(self):
+        """Send select command to connected device"""
+        await self._send_remote_command("select")
+    
+    async def _send_up_command(self):
+        """Send up command to connected device"""
+        await self._send_remote_command("up")
+    
+    async def _send_down_command(self):
+        """Send down command to connected device"""
+        await self._send_remote_command("down")
+    
+    async def _send_left_command(self):
+        """Send left command to connected device"""
+        await self._send_remote_command("left")
+    
+    async def _send_right_command(self):
+        """Send right command to connected device"""
+        await self._send_remote_command("right")
+    
+    async def _send_play_pause_command(self):
+        """Send play/pause command to connected device"""
+        await self._send_remote_command("play_pause")
+    
+    async def _send_volume_up_command(self):
+        """Send volume up command to connected device"""
+        await self._send_remote_command("volume_up")
+    
+    async def _send_volume_down_command(self):
+        """Send volume down command to connected device"""
+        await self._send_remote_command("volume_down")
+    
+    async def _send_remote_command(self, command):
+        """Send command to the connected Apple TV device"""
+        current_device = self.discovery_panel.get_current_device()
+        if not current_device or 'atv' not in current_device:
+            print(f"No device connected - cannot send {command}")
+            return
         
-        # Enhanced debugging
-        print(f"=== LAYOUT DEBUG ===")
-        print(f"Window size: {self.width()}x{self.height()}")
-        print(f"Compact mode: {self.is_compact_mode}")
-        print(f"Splitter visible: {self.splitter.isVisible()}")
-        print(f"Tab widget visible: {self.tab_widget.isVisible()}")
-        print(f"Splitter sizes: {self.splitter.sizes()}")
-        print(f"Splitter count: {self.splitter.count()}")
-        print(f"Discovery panel size: {self.discovery_panel.size()}")
-        print(f"Remote panel size: {self.remote_panel.size()}")
-        print(f"Now playing panel size: {self.now_playing_panel.size()}")
-        print(f"===================")
-        
-        # Force repaint
-        self.update()
-        self.repaint()
+        try:
+            atv = current_device['atv']
+            remote_control = atv.remote_control
+            
+            command_map = {
+                "menu": remote_control.menu,
+                "home": remote_control.home,
+                "select": remote_control.select,
+                "up": remote_control.up,
+                "down": remote_control.down,
+                "left": remote_control.left,
+                "right": remote_control.right,
+                "play_pause": remote_control.play_pause,
+                "volume_up": remote_control.volume_up,
+                "volume_down": remote_control.volume_down,
+            }
+            
+            if command in command_map:
+                await command_map[command]()
+                print(f"Sent {command} command to {current_device['name']}")
+            else:
+                print(f"Unknown command: {command}")
+                
+        except Exception as e:
+            print(f"Error sending {command} command: {str(e)}")
     
     def _setup_responsive_behavior(self):
         """Setup responsive window behavior"""
@@ -801,296 +941,23 @@ class MainWindow(QMainWindow):
         
         print(f"After moving to splitter - sizes: {self.splitter.sizes()}")
     
-    def _handle_pairing_request(self, device_info):
-        """Handle device pairing request"""
-        # Create simple PIN dialog that matches current aesthetic
-        dialog = PinDialog(device_info, parent=self)
-        if dialog.exec() == dialog.DialogCode.Accepted:
-            pin = dialog.get_pin()
-            self._handle_pin_entry(device_info, pin)
-    
-    def _handle_pin_entry(self, device_info, pin):
-        """Handle PIN entry for device pairing"""
-        logging.info(f"PIN entered for {device_info['name']}: {pin}")
-        # TODO: Integrate with actual pairing logic
-
-    def _setup_smooth_transitions(self):
-        """Enable smooth toolbar transitions."""
-        self.setAnimated(True)
+    def _force_initial_layout(self):
+        """Force initial layout mode to ensure visibility"""
+        self._update_layout_mode()
         
-        # Process events regularly to prevent lag
-        self.ui_timer = QTimer()
-        self.ui_timer.timeout.connect(lambda: QApplication.processEvents())
-        self.ui_timer.start(16)  # ~60 FPS refresh rate
-    
-    def _create_menu_bar(self):
-        """Create the application menu bar."""
-        menubar = self.menuBar()
+        # Enhanced debugging
+        print(f"=== LAYOUT DEBUG ===")
+        print(f"Window size: {self.width()}x{self.height()}")
+        print(f"Compact mode: {self.is_compact_mode}")
+        print(f"Splitter visible: {self.splitter.isVisible()}")
+        print(f"Tab widget visible: {self.tab_widget.isVisible()}")
+        print(f"Splitter sizes: {self.splitter.sizes()}")
+        print(f"Splitter count: {self.splitter.count()}")
+        print(f"Discovery panel size: {self.discovery_panel.size()}")
+        print(f"Remote panel size: {self.remote_panel.size()}")
+        print(f"Now playing panel size: {self.now_playing_panel.size()}")
+        print(f"===================")
         
-        # File menu
-        file_menu = menubar.addMenu("&File")
-        
-        # Discover devices action
-        discover_action = QAction("&Discover Devices", self)
-        discover_action.setShortcut(QKeySequence("Ctrl+D"))
-        discover_action.setStatusTip("Scan for Apple TV and HomePod devices")
-        discover_action.triggered.connect(self._discover_devices)
-        file_menu.addAction(discover_action)
-        
-        file_menu.addSeparator()
-        
-        # Exit action
-        exit_action = QAction("E&xit", self)
-        exit_action.setShortcut(QKeySequence("Ctrl+Q"))
-        exit_action.setStatusTip("Exit the application")
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-        
-        # Settings menu
-        settings_menu = menubar.addMenu("&Settings")
-        
-        # Preferences action
-        preferences_action = QAction("&Preferences", self)
-        preferences_action.setShortcut(QKeySequence("Ctrl+,"))
-        preferences_action.setStatusTip("Open application preferences")
-        preferences_action.triggered.connect(self._show_preferences)
-        settings_menu.addAction(preferences_action)
-        
-        # Theme submenu
-        theme_menu = settings_menu.addMenu("&Theme")
-        
-        dark_theme_action = QAction("&Dark", self)
-        dark_theme_action.setCheckable(True)
-        dark_theme_action.triggered.connect(lambda: self._set_theme('dark'))
-        theme_menu.addAction(dark_theme_action)
-        
-        light_theme_action = QAction("&Light", self)
-        light_theme_action.setCheckable(True)
-        light_theme_action.triggered.connect(lambda: self._set_theme('light'))
-        theme_menu.addAction(light_theme_action)
-        
-        # Set current theme
-        current_theme = self.config_manager.get('theme', 'dark')
-        if current_theme == 'dark':
-            dark_theme_action.setChecked(True)
-        else:
-            light_theme_action.setChecked(True)
-        
-        # Help menu
-        help_menu = menubar.addMenu("&Help")
-        
-        # About action
-        about_action = QAction("&About", self)
-        about_action.setStatusTip("About AppleTVRemote-GUI")
-        about_action.triggered.connect(self._show_about)
-        help_menu.addAction(about_action)
-    
-    def _create_status_bar(self):
-        """Create the status bar."""
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        
-        # Connection status label
-        self.connection_status = QLabel("Not connected")
-        self.status_bar.addWidget(self.connection_status)
-        
-        # Device count label
-        self.device_count_label = QLabel("0 devices")
-        self.status_bar.addPermanentWidget(self.device_count_label)
-    
-    def _setup_connections(self):
-        """Set up signal connections."""
-        # Device controller signals
-        self.device_controller.device_connected.connect(self._on_device_connected)
-        self.device_controller.device_disconnected.connect(self._on_device_disconnected)
-        self.device_controller.devices_discovered.connect(self._on_devices_discovered)
-        self.device_controller.connection_failed.connect(self._on_connection_failed)
-        
-        # Pairing manager signals
-        self.pairing_manager.pairing_started.connect(self._on_pairing_started)
-        self.pairing_manager.pairing_completed.connect(self._on_pairing_completed)
-        self.pairing_manager.pairing_failed.connect(self._on_pairing_failed)
-    
-    def _apply_theme(self):
-        """Apply the current theme."""
-        theme = self.config_manager.get('theme', 'dark')
-        
-        if theme == 'dark':
-            self._apply_dark_theme()
-        else:
-            self._apply_light_theme()
-    
-    def _apply_dark_theme(self):
-        """Apply dark theme."""
-        dark_style = '''
-        QMainWindow {
-            background-color: #2b2b2b;
-            color: #ffffff;
-        }
-        QWidget {
-            background-color: #2b2b2b;
-            color: #ffffff;
-        }
-        QTabWidget::pane {
-            border: 1px solid #555555;
-            background-color: #3c3c3c;
-        }
-        QTabBar::tab {
-            background-color: #404040;
-            color: #ffffff;
-            padding: 8px 16px;
-            margin-right: 2px;
-        }
-        QTabBar::tab:selected {
-            background-color: #505050;
-        }
-        QPushButton {
-            background-color: #404040;
-            border: 1px solid #555555;
-            padding: 8px 16px;
-            border-radius: 4px;
-            color: #ffffff;
-        }
-        QPushButton:hover {
-            background-color: #505050;
-        }
-        QPushButton:pressed {
-            background-color: #303030;
-        }
-        QPushButton:disabled {
-            background-color: #2a2a2a;
-            color: #666666;
-        }
-        QStatusBar {
-            background-color: #404040;
-            border-top: 1px solid #555555;
-        }
-        QMenuBar {
-            background-color: #404040;
-            color: #ffffff;
-        }
-        QMenuBar::item:selected {
-            background-color: #505050;
-        }
-        QMenu {
-            background-color: #404040;
-            color: #ffffff;
-            border: 1px solid #555555;
-        }
-        QMenu::item:selected {
-            background-color: #505050;
-        }
-        '''
-        self.setStyleSheet(dark_style)
-    
-    def _apply_light_theme(self):
-        """Apply light theme."""
-        # Use default system theme for light mode
-        self.setStyleSheet("")
-    
-    @pyqtSlot(str, dict)
-    def _on_device_connected(self, device_id: str, device_info: dict):
-        """Handle device connection."""
-        device_name = device_info.get('name', device_id)
-        self.connection_status.setText(f"Connected to {device_name}")
-        self.status_bar.showMessage(f"Connected to {device_name}", 3000)
-    
-    @pyqtSlot(str)
-    def _on_device_disconnected(self, device_id: str):
-        """Handle device disconnection."""
-        self.connection_status.setText("Not connected")
-        self.status_bar.showMessage("Device disconnected", 3000)
-    
-    @pyqtSlot(list)
-    def _on_devices_discovered(self, devices: list):
-        """Handle device discovery completion."""
-        count = len(devices)
-        self.device_count_label.setText(f"{count} device{'s' if count != 1 else ''}")
-        self.status_bar.showMessage(f"Found {count} device{'s' if count != 1 else ''}", 3000)
-    
-    @pyqtSlot(str, str)
-    def _on_connection_failed(self, device_id: str, error: str):
-        """Handle connection failure."""
-        QMessageBox.warning(self, "Connection Failed", 
-                          f"Failed to connect to device: {error}")
-    
-    @pyqtSlot(str, dict)
-    def _on_pairing_completed(self, device_id: str, credentials: dict):
-        """Handle successful pairing."""
-        self.status_bar.showMessage("Pairing completed successfully", 3000)
-        # Try to connect to the newly paired device using QTimer to schedule it
-        QTimer.singleShot(0, lambda: asyncio.create_task(self.device_controller.connect_device(device_id)))
-    
-    @pyqtSlot(str)
-    def _on_pairing_started(self, device_id: str):
-        """Handle pairing started signal."""
-        self.status_bar.showMessage(f"Starting pairing with device {device_id}...", 3000)
-    
-    @pyqtSlot(str, str)
-    def _on_pairing_failed(self, device_id: str, error: str):
-        """Handle pairing failure."""
-        QMessageBox.warning(self, "Pairing Failed", 
-                          f"Failed to pair with device: {error}")
-    
-    @qasync.asyncSlot()
-    async def _discover_devices(self):
-        """Start device discovery."""
-        try:
-            timeout = self.config_manager.get('discovery_timeout', 10)
-            await self.device_controller.discover_devices(timeout)
-        except Exception as e:
-            print(f"Device discovery failed: {e}")
-            QMessageBox.warning(self, "Discovery Failed", f"Device discovery failed: {e}")
-    
-    def _show_preferences(self):
-        """Show preferences dialog."""
-        dialog = SettingsDialog(self.config_manager, self)
-        if dialog.exec() == SettingsDialog.DialogCode.Accepted:
-            self._apply_theme()
-    
-    def _set_theme(self, theme: str):
-        """Set the application theme."""
-        self.config_manager.set('theme', theme)
-        self._apply_theme()
-    
-    def _show_about(self):
-        """Show about dialog."""
-        about_text = '''
-        <h2>AppleTVRemote-GUI</h2>
-        <p>Version 1.0.0</p>
-        <p>A modern Linux GUI application for controlling Apple TV and HomePod devices.</p>
-        <p>Built with PyQt6 and pyatv library.</p>
-        <p><b>Author:</b> Zac</p>
-        <p><b>License:</b> MIT License</p>
-        '''
-        QMessageBox.about(self, "About AppleTVRemote-GUI", about_text)
-    
-    def _update_ui(self):
-        """Periodic UI update."""
-        # Update device count
-        connected_devices = self.device_controller.get_connected_devices()
-        if connected_devices:
-            current_device = next(iter(connected_devices.values()))
-            device_name = current_device.get('name', 'Unknown')
-            self.connection_status.setText(f"Connected to {device_name}")
-        else:
-            self.connection_status.setText("Not connected")
-    
-    def closeEvent(self, event):
-        """Handle window close event."""
-        # Save window geometry
-        geometry = self.saveGeometry()
-        self.config_manager.set('window_geometry', geometry.data().hex())
-        
-        # Schedule disconnection of all devices
-        connected_devices = list(self.device_controller._connected_devices.keys())
-        if connected_devices:
-            # Create a coroutine to disconnect all devices
-            async def disconnect_all():
-                for device_id in connected_devices:
-                    await self.device_controller.disconnect_device(device_id)
-            
-            # Use QTimer to run the disconnection after the event loop continues
-            QTimer.singleShot(0, lambda: asyncio.create_task(disconnect_all()))
-        
-        event.accept()
+        # Force repaint
+        self.update()
+        self.repaint()

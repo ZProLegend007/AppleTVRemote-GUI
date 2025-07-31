@@ -28,7 +28,7 @@ QLoggingCategory.setFilterRules("*=false")
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from ui.main_window import MainWindow
+from ui.main_window import ResponsiveMainWindow
 from backend.config_manager import ConfigManager
 from backend.device_controller import DeviceController
 from backend.pairing_manager import PairingManager
@@ -68,7 +68,7 @@ class ApplerGUIApp:
     
     def setup_ui(self):
         """Set up the main window and UI."""
-        self.main_window = MainWindow(
+        self.main_window = ResponsiveMainWindow(
             self.config_manager,
             self.device_controller,
             self.pairing_manager
