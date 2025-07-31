@@ -153,6 +153,7 @@ class DiscoveryPanel(QFrame):
         """)
         return button
     
+    @qasync.asyncSlot()
     async def _start_discovery(self):
         """Start real device discovery using pyatv"""
         self.progress_bar.setVisible(True)
@@ -214,6 +215,7 @@ class DiscoveryPanel(QFrame):
             self.selected_device = None
             self.connect_btn.setEnabled(False)
     
+    @qasync.asyncSlot()
     async def _connect_device(self):
         """Connect to selected device"""
         if not self.selected_device:
@@ -738,7 +740,12 @@ class ResponsiveMainWindow(QMainWindow):
         self.is_compact_mode = False
         self.min_width_for_sections = 900
         
+        # Store last known good splitter sizes for layout recovery
+        self._last_splitter_sizes = [400, 400, 400]
+        self._default_splitter_sizes = [400, 400, 400]
+        
         self._setup_ui()
+        self._apply_dark_oled_theme()
         self._setup_responsive_behavior()
         
         # Critical: Force initial layout check AFTER panels are created
@@ -803,42 +810,52 @@ class ResponsiveMainWindow(QMainWindow):
         self.remote_panel.volume_up_pressed.connect(self._send_volume_up_command)
         self.remote_panel.volume_down_pressed.connect(self._send_volume_down_command)
     
+    @qasync.asyncSlot()
     async def _send_menu_command(self):
         """Send menu command to connected device"""
         await self._send_remote_command("menu")
     
+    @qasync.asyncSlot()
     async def _send_home_command(self):
         """Send home command to connected device"""
         await self._send_remote_command("home")
     
+    @qasync.asyncSlot()
     async def _send_select_command(self):
         """Send select command to connected device"""
         await self._send_remote_command("select")
     
+    @qasync.asyncSlot()
     async def _send_up_command(self):
         """Send up command to connected device"""
         await self._send_remote_command("up")
     
+    @qasync.asyncSlot()
     async def _send_down_command(self):
         """Send down command to connected device"""
         await self._send_remote_command("down")
     
+    @qasync.asyncSlot()
     async def _send_left_command(self):
         """Send left command to connected device"""
         await self._send_remote_command("left")
     
+    @qasync.asyncSlot()
     async def _send_right_command(self):
         """Send right command to connected device"""
         await self._send_remote_command("right")
     
+    @qasync.asyncSlot()
     async def _send_play_pause_command(self):
         """Send play/pause command to connected device"""
         await self._send_remote_command("play_pause")
     
+    @qasync.asyncSlot()
     async def _send_volume_up_command(self):
         """Send volume up command to connected device"""
         await self._send_remote_command("volume_up")
     
+    @qasync.asyncSlot()
     async def _send_volume_down_command(self):
         """Send volume down command to connected device"""
         await self._send_remote_command("volume_down")
@@ -876,6 +893,226 @@ class ResponsiveMainWindow(QMainWindow):
         except Exception as e:
             print(f"Error sending {command} command: {str(e)}")
     
+    def _apply_dark_oled_theme(self):
+        """Apply comprehensive dark OLED theme throughout the application"""
+        dark_oled_style = """
+        QMainWindow {
+            background-color: #000000;
+            color: #ffffff;
+        }
+        QWidget {
+            background-color: #000000;
+            color: #ffffff;
+        }
+        QFrame {
+            background-color: #111111;
+            border: 1px solid #333333;
+            border-radius: 8px;
+        }
+        QPushButton {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #2a2a2a,
+                stop: 1 #1a1a1a
+            );
+            border: 1px solid #444444;
+            border-radius: 8px;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 8px;
+            min-height: 20px;
+        }
+        QPushButton:hover {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #3a3a3a,
+                stop: 1 #2a2a2a
+            );
+            border-color: #666666;
+        }
+        QPushButton:pressed {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #1a1a1a,
+                stop: 1 #0a0a0a
+            );
+            border-color: #888888;
+        }
+        QPushButton:disabled {
+            background-color: #1a1a1a;
+            color: #666666;
+            border-color: #333333;
+        }
+        QLabel {
+            color: #ffffff;
+            background: transparent;
+        }
+        QGroupBox {
+            color: #ffffff;
+            border: 1px solid #333333;
+            border-radius: 6px;
+            margin-top: 10px;
+            background-color: #0a0a0a;
+            font-weight: bold;
+        }
+        QGroupBox::title {
+            color: #ffffff;
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 5px 0 5px;
+        }
+        QTableWidget {
+            background-color: #111111;
+            color: #ffffff;
+            border: 1px solid #333333;
+            selection-background-color: #444444;
+            alternate-background-color: #0a0a0a;
+            gridline-color: #333333;
+        }
+        QTableWidget::item {
+            border-bottom: 1px solid #333333;
+            padding: 5px;
+        }
+        QTableWidget::item:selected {
+            background-color: #444444;
+            color: #ffffff;
+        }
+        QHeaderView::section {
+            background-color: #222222;
+            color: #ffffff;
+            border: 1px solid #333333;
+            padding: 5px;
+            font-weight: bold;
+        }
+        QProgressBar {
+            border: 1px solid #333333;
+            border-radius: 3px;
+            background-color: #111111;
+            color: #ffffff;
+            text-align: center;
+        }
+        QProgressBar::chunk {
+            background-color: #007acc;
+            border-radius: 2px;
+        }
+        QTabWidget::pane {
+            border: 1px solid #333333;
+            background-color: #111111;
+        }
+        QTabBar::tab {
+            background-color: #222222;
+            color: #ffffff;
+            border: 1px solid #333333;
+            padding: 8px 16px;
+            margin-right: 2px;
+        }
+        QTabBar::tab:selected {
+            background-color: #007acc;
+            border-bottom-color: #007acc;
+        }
+        QTabBar::tab:hover {
+            background-color: #333333;
+        }
+        QSlider::groove:horizontal {
+            border: 1px solid #333333;
+            height: 4px;
+            background-color: #222222;
+            border-radius: 2px;
+        }
+        QSlider::handle:horizontal {
+            background-color: #007acc;
+            border: 1px solid #333333;
+            width: 16px;
+            border-radius: 8px;
+            margin: -6px 0;
+        }
+        QSlider::handle:horizontal:hover {
+            background-color: #0099ff;
+        }
+        QSplitter::handle {
+            background-color: #333333;
+        }
+        QSplitter::handle:horizontal {
+            width: 3px;
+        }
+        QSplitter::handle:vertical {
+            height: 3px;
+        }
+        QLineEdit {
+            background-color: #222222;
+            border: 1px solid #333333;
+            border-radius: 4px;
+            color: #ffffff;
+            padding: 5px;
+        }
+        QLineEdit:focus {
+            border-color: #007acc;
+        }
+        QStatusBar {
+            background-color: #111111;
+            color: #ffffff;
+            border-top: 1px solid #333333;
+        }
+        QMenuBar {
+            background-color: #222222;
+            color: #ffffff;
+            border-bottom: 1px solid #333333;
+        }
+        QMenuBar::item {
+            background-color: transparent;
+            padding: 5px 10px;
+        }
+        QMenuBar::item:selected {
+            background-color: #333333;
+        }
+        QMenu {
+            background-color: #222222;
+            color: #ffffff;
+            border: 1px solid #333333;
+        }
+        QMenu::item {
+            padding: 5px 20px;
+        }
+        QMenu::item:selected {
+            background-color: #333333;
+        }
+        /* Circular button specific styling for remote control */
+        CircularButton {
+            border: 2px solid #555555;
+            border-radius: 25px;
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #404040,
+                stop: 1 #202020
+            );
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        CircularButton:hover {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #505050,
+                stop: 1 #303030
+            );
+            border-color: #777777;
+        }
+        CircularButton:pressed {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #202020,
+                stop: 1 #101010
+            );
+            border-color: #999999;
+        }
+        CircularButton:disabled {
+            background-color: #2a2a2a;
+            color: #666666;
+            border-color: #444444;
+        }
+        """
+        self.setStyleSheet(dark_oled_style)
+    
     def _setup_responsive_behavior(self):
         """Setup responsive window behavior"""
         self.resize_timer = QTimer()
@@ -899,6 +1136,11 @@ class ResponsiveMainWindow(QMainWindow):
     def _switch_layout_mode(self):
         """Switch between compact and expanded layout modes"""
         if self.is_compact_mode:
+            # Store current splitter sizes before switching to compact mode
+            current_sizes = self.splitter.sizes()
+            if sum(current_sizes) > 0:  # Only store if sizes are valid
+                self._last_splitter_sizes = current_sizes
+            
             # Switch to compact mode (tabs) for phone-like sizes
             self.splitter.setVisible(False)
             self.tab_widget.setVisible(True)
@@ -933,11 +1175,27 @@ class ResponsiveMainWindow(QMainWindow):
         self.splitter.addWidget(self.remote_panel)
         self.splitter.addWidget(self.now_playing_panel)
         
-        # CRITICAL: Set sizes IMMEDIATELY after adding
-        self.splitter.setSizes([400, 400, 400])
+        # CRITICAL: Restore last known good sizes or use defaults
+        sizes_to_restore = self._last_splitter_sizes if sum(self._last_splitter_sizes) > 0 else self._default_splitter_sizes
         
-        # Force refresh
-        QTimer.singleShot(10, lambda: self.splitter.setSizes([400, 400, 400]))
+        # Force layout update multiple times to ensure proper sizing
+        def restore_sizes():
+            self.splitter.setSizes(sizes_to_restore)
+            print(f"Restored splitter sizes to: {sizes_to_restore}")
+            print(f"Actual splitter sizes: {self.splitter.sizes()}")
+        
+        # Apply sizes immediately and again after a short delay
+        restore_sizes()
+        QTimer.singleShot(10, restore_sizes)
+        QTimer.singleShot(50, restore_sizes)
+        
+        # Force widget updates
+        self.splitter.update()
+        for i in range(self.splitter.count()):
+            widget = self.splitter.widget(i)
+            if widget:
+                widget.show()
+                widget.update()
         
         print(f"After moving to splitter - sizes: {self.splitter.sizes()}")
     
