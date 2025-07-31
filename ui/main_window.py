@@ -214,8 +214,8 @@ class RemotePanel(QFrame):
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
         
-        # Menu button
-        self.menu_btn = self._create_remote_button("MENU", "#e74c3c", (180, 45))
+        # Menu button - clean neutral
+        self.menu_btn = self._create_remote_button("MENU", (180, 45))
         self.menu_btn.clicked.connect(self._on_menu_pressed)
         layout.addWidget(self.menu_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
@@ -268,124 +268,93 @@ class RemotePanel(QFrame):
         
         layout.addWidget(media_frame)
         
-        # Home button
-        self.home_btn = self._create_remote_button("HOME", "#3498db", (180, 45))
+        # Home button - clean neutral
+        self.home_btn = self._create_remote_button("HOME", (180, 45))
         self.home_btn.clicked.connect(self._on_home_pressed)
         layout.addWidget(self.home_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
         layout.addStretch()
     
-    def _create_remote_button(self, text, color, size=(180, 45)):
-        """Create styled remote button with modern design"""
+    def _create_remote_button(self, text, size=(180, 45)):
+        """Create clean neutral remote button"""
         button = QPushButton(text)
         button.setFixedSize(*size)
         button.setFont(QFont("Arial", 11, QFont.Weight.Bold))
         
-        # Modern rounded button styling
-        button.setStyleSheet(f"""
-            QPushButton {{
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 {color},
-                    stop: 1 {self._darken_color(color)}
-                );
-                border: none;
-                color: white;
+        # Clean neutral styling - NO COLORS
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: #f8f8f8;
+                border: 1px solid #ccc;
+                color: #333;
                 border-radius: 12px;
                 font-weight: bold;
                 font-size: 11px;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 {self._darken_color(color, 0.1)},
-                    stop: 1 {self._darken_color(color, 0.2)}
-                );
-            }}
-            QPushButton:pressed {{
-                background: {self._darken_color(color, 0.3)};
-            }}
+            }
+            QPushButton:hover {
+                background-color: #f0f0f0;
+                border-color: #aaa;
+            }
+            QPushButton:pressed {
+                background-color: #e8e8e8;
+                border-color: #999;
+            }
         """)
         return button
     
     def _create_dpad_button(self, text, size=(60, 60)):
-        """Create directional pad button with modern design"""
+        """Create clean neutral directional pad button"""
         button = QPushButton(text)
         button.setFixedSize(*size)
         button.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         
-        # Modern circular button styling
+        # Clean neutral circular styling - NO COLORS
         radius = min(size) // 2
         button.setStyleSheet(f"""
             QPushButton {{
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #f5f5f5,
-                    stop: 1 #e0e0e0
-                );
-                border: 2px solid #ccc;
+                background-color: #f8f8f8;
+                border: 1px solid #ccc;
                 color: #333;
                 border-radius: {radius}px;
                 font-weight: bold;
                 font-size: 14px;
             }}
             QPushButton:hover {{
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #e8e8e8,
-                    stop: 1 #d0d0d0
-                );
-                border-color: #999;
+                background-color: #f0f0f0;
+                border-color: #aaa;
             }}
             QPushButton:pressed {{
-                background: #c0c0c0;
-                border-color: #666;
+                background-color: #e8e8e8;
+                border-color: #999;
             }}
         """)
         return button
     
     def _create_media_button(self, text):
-        """Create media control button with modern design"""
+        """Create clean neutral media control button"""
         button = QPushButton(text)
         button.setFixedSize(55, 55)
         button.setFont(QFont("Arial", 18))
         
-        # Modern circular media button
+        # Clean neutral circular styling - NO COLORS
         button.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #ff9500,
-                    stop: 1 #e67e22
-                );
-                border: none;
-                color: white;
+                background-color: #f8f8f8;
+                border: 1px solid #ccc;
+                color: #333;
                 border-radius: 27px;
                 font-size: 18px;
             }
             QPushButton:hover {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #e67e22,
-                    stop: 1 #d35400
-                );
+                background-color: #f0f0f0;
+                border-color: #aaa;
             }
             QPushButton:pressed {
-                background: #d35400;
+                background-color: #e8e8e8;
+                border-color: #999;
             }
         """)
         return button
-    
-    def _darken_color(self, color, factor=0.2):
-        """Darken a hex color by a factor"""
-        # Simple color darkening
-        if color.startswith('#'):
-            color = color[1:]
-        r, g, b = int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
-        r = max(0, int(r * (1 - factor)))
-        g = max(0, int(g * (1 - factor)))
-        b = max(0, int(b * (1 - factor)))
-        return f"#{r:02x}{g:02x}{b:02x}"
     
     def _setup_shortcuts(self):
         """Setup keyboard shortcuts"""
@@ -463,34 +432,29 @@ class RemotePanel(QFrame):
         self.volume_down_pressed.emit()
     
     def _animate_button_press(self, button):
-        """Improved button press animation that doesn't stick"""
+        """Clean button press animation without colors"""
         button_id = id(button)
         
-        # Cancel any existing animation for this button
+        # Cancel existing animation
         if button_id in self.button_animations:
             animation = self.button_animations[button_id]
             if animation.state() == QPropertyAnimation.State.Running:
                 animation.stop()
         
-        # Create new animation
-        animation = QPropertyAnimation(button, b"styleSheet")
-        animation.setDuration(150)
-        
+        # Simple press animation - just briefly darker gray
         original_style = button.styleSheet()
         pressed_style = original_style.replace(
-            "QPushButton:pressed", "QPushButton:pressed_temp"
-        ) + "\nQPushButton { background: #007acc !important; }"
+            "background-color: #f8f8f8", "background-color: #e0e0e0"
+        )
         
+        animation = QPropertyAnimation(button, b"styleSheet")
+        animation.setDuration(100)
         animation.setStartValue(pressed_style)
         animation.setEndValue(original_style)
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         
-        # Store animation reference
         self.button_animations[button_id] = animation
-        
-        # Clean up when finished
         animation.finished.connect(lambda: self.button_animations.pop(button_id, None))
-        
         animation.start()
 
 class NowPlayingPanel(QFrame):
@@ -581,11 +545,7 @@ class NowPlayingPanel(QFrame):
                 background: #f0f0f0;
             }
             QProgressBar::chunk {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 1, y2: 0,
-                    stop: 0 #4a90e2,
-                    stop: 1 #357abd
-                );
+                background-color: #999;
                 border-radius: 6px;
             }
         """)
@@ -624,19 +584,15 @@ class NowPlayingPanel(QFrame):
                 border-radius: 4px;
             }
             QSlider::handle:horizontal {
-                background: #4a90e2;
-                border: 2px solid #357abd;
+                background: #999;
+                border: 2px solid #777;
                 width: 18px;
                 height: 18px;
                 border-radius: 9px;
                 margin: -5px 0;
             }
             QSlider::sub-page:horizontal {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 1, y2: 0,
-                    stop: 0 #4a90e2,
-                    stop: 1 #357abd
-                );
+                background-color: #999;
                 border-radius: 4px;
             }
         """)
@@ -738,21 +694,16 @@ class MainWindow(QMainWindow):
         self.remote_panel = RemotePanel()
         self.now_playing_panel = NowPlayingPanel()
         
-        # Add panels to splitter
+        # Add panels to splitter initially (don't add to tabs yet - only one container at a time)
         self.splitter.addWidget(self.discovery_panel)
         self.splitter.addWidget(self.remote_panel)
         self.splitter.addWidget(self.now_playing_panel)
         
-        # Set initial sizes - ensure visibility
-        self.splitter.setSizes([350, 350, 350])
+        # Set initial sizes - ensure visibility with larger default sizes
+        self.splitter.setSizes([400, 400, 400])
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
         self.splitter.setStretchFactor(2, 1)
-        
-        # Add panels to tab widget for compact view
-        self.tab_widget.addTab(self.discovery_panel, "🔍 Discovery")
-        self.tab_widget.addTab(self.remote_panel, "📺 Remote")
-        self.tab_widget.addTab(self.now_playing_panel, "🎵 Now Playing")
         
         # Connect signals
         if self.discovery_panel:
@@ -768,12 +719,22 @@ class MainWindow(QMainWindow):
         """Force initial layout mode to ensure visibility"""
         self._update_layout_mode()
         
-        # Debug logging
+        # Enhanced debugging
+        print(f"=== LAYOUT DEBUG ===")
         print(f"Window size: {self.width()}x{self.height()}")
         print(f"Compact mode: {self.is_compact_mode}")
         print(f"Splitter visible: {self.splitter.isVisible()}")
         print(f"Tab widget visible: {self.tab_widget.isVisible()}")
         print(f"Splitter sizes: {self.splitter.sizes()}")
+        print(f"Splitter count: {self.splitter.count()}")
+        print(f"Discovery panel size: {self.discovery_panel.size()}")
+        print(f"Remote panel size: {self.remote_panel.size()}")
+        print(f"Now playing panel size: {self.now_playing_panel.size()}")
+        print(f"===================")
+        
+        # Force repaint
+        self.update()
+        self.repaint()
     
     def _setup_responsive_behavior(self):
         """Setup responsive window behavior"""
@@ -809,27 +770,36 @@ class MainWindow(QMainWindow):
             self._move_panels_to_splitter()
     
     def _move_panels_to_tabs(self):
-        """Move panels from splitter to tab widget"""
-        # Clear existing tabs
-        self.tab_widget.clear()
+        """Move panels to tab widget"""
+        print("Moving panels to tabs")
         
-        # Re-add panels to tabs
-        self.tab_widget.addTab(self.discovery_panel, "Discovery")
-        self.tab_widget.addTab(self.remote_panel, "Remote") 
-        self.tab_widget.addTab(self.now_playing_panel, "Now Playing")
-    
-    def _move_panels_to_splitter(self):
-        """Move panels from tab widget to splitter"""
         # Clear tabs
         self.tab_widget.clear()
         
-        # Re-add to splitter
+        # Add panels to tabs
+        self.tab_widget.addTab(self.discovery_panel, "🔍 Discovery")
+        self.tab_widget.addTab(self.remote_panel, "📺 Remote")
+        self.tab_widget.addTab(self.now_playing_panel, "🎵 Now Playing")
+    
+    def _move_panels_to_splitter(self):
+        """Move panels from tab widget to splitter with PROPER size management"""
+        print("Moving panels to splitter")
+        
+        # Clear tabs first
+        self.tab_widget.clear()
+        
+        # Add panels back to splitter
         self.splitter.addWidget(self.discovery_panel)
         self.splitter.addWidget(self.remote_panel)
         self.splitter.addWidget(self.now_playing_panel)
         
-        # Restore reasonable sizes
-        self.splitter.setSizes([300, 300, 300])
+        # CRITICAL: Set sizes IMMEDIATELY after adding
+        self.splitter.setSizes([400, 400, 400])
+        
+        # Force refresh
+        QTimer.singleShot(10, lambda: self.splitter.setSizes([400, 400, 400]))
+        
+        print(f"After moving to splitter - sizes: {self.splitter.sizes()}")
     
     def _handle_pairing_request(self, device_info):
         """Handle device pairing request"""
