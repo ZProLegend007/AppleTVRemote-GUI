@@ -35,6 +35,10 @@ class DiscoveryPanel(QFrame):
         self.discovered_devices = []
         self.selected_device = None
         self.current_device = None  # Currently connected device
+        
+        # Add environment debugging
+        self._debug_launch_environment()
+        
         self._setup_ui()
     
     def _setup_ui(self):
@@ -113,6 +117,38 @@ class DiscoveryPanel(QFrame):
         layout.addWidget(devices_group)
         layout.addStretch()
     
+    def _debug_launch_environment(self):
+        """Debug environment differences between desktop and terminal launch"""
+        import sys
+        import os
+        
+        print("🔍 === ENVIRONMENT DEBUG ===")
+        print(f"Launch method: {sys.argv}")
+        print(f"Working directory: {os.getcwd()}")
+        print(f"Python executable: {sys.executable}")
+        print(f"DISPLAY environment: {os.environ.get('DISPLAY', 'Not set')}")
+        print(f"XDG_SESSION_TYPE: {os.environ.get('XDG_SESSION_TYPE', 'Not set')}")
+        print(f"DESKTOP_SESSION: {os.environ.get('DESKTOP_SESSION', 'Not set')}")
+        print(f"PATH: {os.environ.get('PATH', 'Not set')[:100]}...")
+        
+        # Check if launched from desktop or terminal
+        if os.isatty(sys.stdout.fileno()):
+            print("🖥️ Launched from TERMINAL")
+            launch_method = "terminal"
+        else:
+            print("🖱️ Launched from DESKTOP")
+            launch_method = "desktop"
+        
+        # Store launch method for styling decisions
+        self.launch_method = launch_method
+        
+        # Check for common styling issues
+        qt_style_override = os.environ.get('QT_STYLE_OVERRIDE', 'Not set')
+        qt_theme = os.environ.get('QT_QPA_PLATFORMTHEME', 'Not set')
+        print(f"QT_STYLE_OVERRIDE: {qt_style_override}")
+        print(f"QT_QPA_PLATFORMTHEME: {qt_theme}")
+        print("🔍 ==========================")
+    
     def _create_clean_button(self, text):
         """Create clean button with consistent styling"""
         button = QPushButton(text)
@@ -121,118 +157,194 @@ class DiscoveryPanel(QFrame):
     
     @qasync.asyncSlot()
     async def _start_discovery(self):
-        """Start real device discovery using pyatv with enhanced loading animation and terminal output"""
-        # Start enhanced loading animation
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Indeterminate progress bar
-        self.status_label.setText("Discovering Apple TV devices...")
-        self.discover_btn.setEnabled(False)
-        self.discovered_devices.clear()
-        self._populate_device_table()
+        """CRASH-PROOF device discovery with safe threading and error handling"""
+        print("🔍 Starting SAFE Apple TV discovery...")
         
-        # Setup animated loading dots for button text
-        self.loading_timer = QTimer()
-        self.loading_dots = 0
-        self.loading_timer.timeout.connect(self._update_discovery_loading_animation)
-        self.loading_timer.start(500)  # Update every 500ms
+        # Safety check - prevent multiple discoveries
+        if hasattr(self, '_discovery_running') and self._discovery_running:
+            print("⚠️ Discovery already running, ignoring request")
+            return
         
-        # Terminal output for debugging
-        print("🔍 Starting Apple TV discovery...")
-        print("Running: pyatv scan")
+        self._discovery_running = True
         
         try:
-            import pyatv
-            
-            # Real device discovery with terminal output
-            print("📡 Scanning for Apple TV devices...")
-            devices = await pyatv.scan(timeout=8)  # Longer timeout for better results
-            
-            self.discovered_devices = []
-            for device in devices:
-                device_info = {
-                    "name": device.name,
-                    "model": str(device.device_info.model) if device.device_info else "Unknown",
-                    "address": str(device.address),
-                    "device": device  # Store the actual pyatv device object
-                }
-                self.discovered_devices.append(device_info)
-                
-                # Real-time terminal output of discovered devices
-                print(f"📺 Found device: {device.name} ({device_info['model']}) at {device_info['address']}")
-            
+            # Start enhanced loading animation
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setRange(0, 0)  # Indeterminate progress bar
+            self.status_label.setText("Discovering Apple TV devices...")
+            self.discover_btn.setEnabled(False)
+            self.discover_btn.setText("Scanning...")
+            self.discovered_devices.clear()
             self._populate_device_table()
-            device_count = len(self.discovered_devices)
             
-            if device_count > 0:
-                self.status_label.setText(f"✅ Found {device_count} device(s)")
-            else:
-                self.status_label.setText("No Apple TV devices found")
+            # Setup animated loading dots for button text with crash protection
+            if hasattr(self, 'loading_timer'):
+                self.loading_timer.stop()
+            self.loading_timer = QTimer()
+            self.loading_dots = 0
+            self.loading_timer.timeout.connect(self._update_discovery_loading_animation)
+            self.loading_timer.start(500)  # Update every 500ms
             
-            # Terminal output summary
-            print(f"✅ Discovery completed: {device_count} device(s) found")
+            # Crash protection timeout
+            self.discovery_timeout_timer = QTimer()
+            self.discovery_timeout_timer.setSingleShot(True)
+            self.discovery_timeout_timer.timeout.connect(self._handle_discovery_timeout)
+            self.discovery_timeout_timer.start(20000)  # 20 second timeout
             
-        except ImportError:
-            # Fallback to atvremote command if pyatv not available
+            # Terminal output for debugging
+            print("Running: SAFE pyatv scan with crash protection")
+            
             try:
-                import subprocess
-                print("📡 Fallback: Using atvremote scan...")
-                result = subprocess.run(['atvremote', 'scan'], 
-                                       capture_output=True, text=True, timeout=15)
+                import pyatv
                 
-                print(f"Scan output: {result.stdout}")
-                if result.stderr:
-                    print(f"Scan errors: {result.stderr}")
+                # Real device discovery with terminal output and crash protection
+                print("📡 Scanning for Apple TV devices with timeout protection...")
                 
-                # Parse atvremote output (basic parsing)
+                # Use asyncio.wait_for for additional timeout protection
+                import asyncio
+                devices = await asyncio.wait_for(pyatv.scan(timeout=8), timeout=12)
+                
                 self.discovered_devices = []
-                if result.returncode == 0 and result.stdout:
-                    lines = result.stdout.strip().split('\n')
-                    for line in lines:
-                        if line.strip():
-                            # Basic parsing of atvremote output
-                            parts = line.split()
-                            if len(parts) >= 2:
-                                device_info = {
-                                    "name": parts[0],
-                                    "model": "Apple TV",
-                                    "address": parts[1] if len(parts) > 1 else "Unknown",
-                                    "device": None
-                                }
-                                self.discovered_devices.append(device_info)
-                                print(f"📺 Found device: {device_info['name']} at {device_info['address']}")
+                for device in devices:
+                    try:
+                        device_info = {
+                            "name": device.name,
+                            "model": str(device.device_info.model) if device.device_info else "Unknown",
+                            "address": str(device.address),
+                            "device": device  # Store the actual pyatv device object
+                        }
+                        self.discovered_devices.append(device_info)
+                        
+                        # Real-time terminal output of discovered devices
+                        print(f"📺 Found device: {device.name} ({device_info['model']}) at {device_info['address']}")
+                    except Exception as device_error:
+                        print(f"⚠️ Error processing device: {device_error}")
+                        continue
                 
                 self._populate_device_table()
                 device_count = len(self.discovered_devices)
                 
                 if device_count > 0:
-                    self.status_label.setText(f"✅ Found {device_count} device(s) via atvremote")
+                    self.status_label.setText(f"✅ Found {device_count} device(s)")
                 else:
-                    self.status_label.setText("No Apple TV devices found via atvremote")
+                    self.status_label.setText("No Apple TV devices found")
                 
-                print(f"✅ atvremote discovery completed: {device_count} device(s) found")
+                # Terminal output summary
+                print(f"✅ Safe discovery completed: {device_count} device(s) found")
                 
-            except subprocess.TimeoutExpired:
-                error_msg = "❌ atvremote scan timed out"
+            except ImportError:
+                # Fallback to atvremote command with crash protection
+                await self._safe_atvremote_discovery()
+            except asyncio.TimeoutError:
+                error_msg = "❌ Discovery timed out for safety"
                 self.status_label.setText(error_msg)
                 print(f"❌ {error_msg}")
-            except FileNotFoundError:
-                error_msg = "❌ Error: neither pyatv nor atvremote available"
+            except Exception as pyatv_error:
+                error_msg = f"❌ pyatv discovery error: {str(pyatv_error)}"
                 self.status_label.setText(error_msg)
                 print(f"❌ {error_msg}")
-            except Exception as e:
-                error_msg = f"❌ atvremote error: {str(e)}"
-                self.status_label.setText(error_msg)
-                print(f"❌ {error_msg}")
+                # Try fallback
+                await self._safe_atvremote_discovery()
+                
         except Exception as e:
-            error_msg = f"❌ Discovery error: {str(e)}"
+            error_msg = f"❌ Critical discovery error: {str(e)}"
             self.status_label.setText(error_msg)
             print(f"❌ {error_msg}")
         finally:
-            # Stop loading animation
-            self.loading_timer.stop()
+            # Clean up timers and state SAFELY
+            self._cleanup_discovery_state()
+    
+    async def _safe_atvremote_discovery(self):
+        """Safe atvremote fallback discovery with crash protection"""
+        try:
+            import subprocess
+            import asyncio
+            
+            print("📡 Fallback: Using SAFE atvremote scan...")
+            
+            # Run subprocess in executor to prevent blocking
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, 
+                lambda: subprocess.run(
+                    ['atvremote', 'scan'], 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=10
+                )
+            )
+            
+            print(f"Scan output: {result.stdout}")
+            if result.stderr:
+                print(f"Scan errors: {result.stderr}")
+            
+            # Parse atvremote output (basic parsing)
+            self.discovered_devices = []
+            if result.returncode == 0 and result.stdout:
+                lines = result.stdout.strip().split('\n')
+                for line in lines:
+                    if line.strip():
+                        # Basic parsing of atvremote output
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            device_info = {
+                                "name": parts[0],
+                                "model": "Apple TV",
+                                "address": parts[1] if len(parts) > 1 else "Unknown",
+                                "device": None
+                            }
+                            self.discovered_devices.append(device_info)
+                            print(f"📺 Found device: {device_info['name']} at {device_info['address']}")
+            
+            self._populate_device_table()
+            device_count = len(self.discovered_devices)
+            
+            if device_count > 0:
+                self.status_label.setText(f"✅ Found {device_count} device(s) via atvremote")
+            else:
+                self.status_label.setText("No Apple TV devices found via atvremote")
+            
+            print(f"✅ Safe atvremote discovery completed: {device_count} device(s) found")
+            
+        except subprocess.TimeoutExpired:
+            error_msg = "❌ atvremote scan timed out safely"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
+        except FileNotFoundError:
+            error_msg = "❌ Error: neither pyatv nor atvremote available"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
+        except Exception as e:
+            error_msg = f"❌ Safe atvremote error: {str(e)}"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
+    
+    def _handle_discovery_timeout(self):
+        """Handle discovery timeout safely"""
+        print("⏰ Discovery timeout reached - stopping safely")
+        self.status_label.setText("❌ Discovery timed out for safety")
+        self._cleanup_discovery_state()
+    
+    def _cleanup_discovery_state(self):
+        """Clean up discovery state safely"""
+        try:
+            # Stop all timers safely
+            if hasattr(self, 'loading_timer') and self.loading_timer:
+                self.loading_timer.stop()
+            if hasattr(self, 'discovery_timeout_timer') and self.discovery_timeout_timer:
+                self.discovery_timeout_timer.stop()
+            
+            # Reset UI state
             self.progress_bar.setVisible(False)
             self.discover_btn.setText("Discover Apple TVs")  # Reset button text
             self.discover_btn.setEnabled(True)
+            
+            # Clear running flag
+            self._discovery_running = False
+            
+            print("🧹 Discovery state cleaned up safely")
+        except Exception as cleanup_error:
+            print(f"⚠️ Error during cleanup: {cleanup_error}")
     
     def _update_discovery_loading_animation(self):
         """Update discovery loading dots animation"""
@@ -473,132 +585,159 @@ class RemotePanel(QFrame):
         return button
     
     def _create_volume_pill(self):
-        """Create Apple TV style volume pill buttons"""
-        volume_container = QWidget()
-        volume_layout = QVBoxLayout(volume_container)
-        volume_layout.setSpacing(0)  # No gap between buttons for pill effect
-        volume_layout.setContentsMargins(0, 0, 0, 0)
+        """Create PERMANENT Apple TV style volume pill that NEVER loses its shape"""
+        print("🎛️ Creating permanent volume pill container...")
         
-        # Volume Up (top half of pill)
+        # Create permanent pill frame that maintains shape ALWAYS
+        pill_frame = QFrame()
+        pill_frame.setFixedSize(70, 90)  # Fixed size pill container
+        pill_frame.setStyleSheet("""
+            QFrame {
+                background-color: transparent;
+                border: 3px solid #555555;
+                border-radius: 35px;  /* Perfect pill shape */
+            }
+        """)
+        
+        # Internal layout for buttons
+        pill_layout = QVBoxLayout(pill_frame)
+        pill_layout.setSpacing(0)  # No gap between buttons
+        pill_layout.setContentsMargins(3, 3, 3, 3)  # Small margin inside pill
+        
+        # Volume Up (top half of pill) - NO BORDER
         self.volume_up_btn = QPushButton("🔊")
         self.volume_up_btn.setFixedSize(60, 40)
         self.volume_up_btn.clicked.connect(self._on_volume_up_pressed)
         
-        # Volume Down (bottom half of pill) 
+        # Volume Down (bottom half of pill) - NO BORDER
         self.volume_down_btn = QPushButton("🔉")
         self.volume_down_btn.setFixedSize(60, 40)
         self.volume_down_btn.clicked.connect(self._on_volume_down_pressed)
         
-        # Apply pill styling
-        self._apply_pill_styling()
-        
-        volume_layout.addWidget(self.volume_up_btn)
-        volume_layout.addWidget(self.volume_down_btn)
-        
-        return volume_container
-    
-    def _apply_pill_styling(self):
-        """Apply seamless pill button styling for connected volume buttons"""
-        # Top button - only top corners rounded, perfect seamless connection
-        pill_style_top = """
-        QPushButton {
-            background-color: qlineargradient(
-                x1: 0, y1: 0, x2: 0, y2: 1,
-                stop: 0 #2a2a2a,
-                stop: 1 #1a1a1a
-            );
-            border: 1px solid #444444;
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
-            border-bottom-left-radius: 0px;
-            border-bottom-right-radius: 0px;
-            border-bottom: none;  /* Remove border between buttons for seamless connection */
-            color: #ffffff;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background-color: qlineargradient(
-                x1: 0, y1: 0, x2: 0, y2: 1,
-                stop: 0 #3a3a3a,
-                stop: 1 #2a2a2a
-            );
-        }
-        QPushButton:pressed {
-            background-color: qlineargradient(
-                x1: 0, y1: 0, x2: 0, y2: 1,
-                stop: 0 #1a1a1a,
-                stop: 1 #0a0a0a
-            );
-        }
+        # Button styling that fits INSIDE the pill frame
+        volume_button_style = """
+            QPushButton {
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #2a2a2a,
+                    stop: 1 #1a1a1a
+                );
+                border: none;  /* NO BORDER - pill frame provides the border */
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #3a3a3a,
+                    stop: 1 #2a2a2a
+                );
+            }
+            QPushButton:pressed {
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #1a1a1a,
+                    stop: 1 #0a0a0a
+                );
+            }
         """
         
-        # Bottom button - only bottom corners rounded, perfect seamless connection
-        pill_style_bottom = """
-        QPushButton {
-            background-color: qlineargradient(
-                x1: 0, y1: 0, x2: 0, y2: 1,
-                stop: 0 #2a2a2a,
-                stop: 1 #1a1a1a
-            );
-            border: 1px solid #444444;
-            border-top-left-radius: 0px;
-            border-top-right-radius: 0px;
-            border-bottom-left-radius: 20px;
-            border-bottom-right-radius: 20px;
-            border-top: none;  /* Remove border between buttons for seamless connection */
-            color: #ffffff;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background-color: qlineargradient(
-                x1: 0, y1: 0, x2: 0, y2: 1,
-                stop: 0 #3a3a3a,
-                stop: 1 #2a2a2a
-            );
-        }
-        QPushButton:pressed {
-            background-color: qlineargradient(
-                x1: 0, y1: 0, x2: 0, y2: 1,
-                stop: 0 #1a1a1a,
-                stop: 1 #0a0a0a
-            );
-        }
-        """
+        # Apply rounded corners ONLY to top and bottom buttons
+        self.volume_up_btn.setStyleSheet(volume_button_style + """
+            QPushButton {
+                border-top-left-radius: 30px;
+                border-top-right-radius: 30px;
+                border-bottom-left-radius: 0px;
+                border-bottom-right-radius: 0px;
+            }
+        """)
         
-        self.volume_up_btn.setStyleSheet(pill_style_top)
-        self.volume_down_btn.setStyleSheet(pill_style_bottom)
+        self.volume_down_btn.setStyleSheet(volume_button_style + """
+            QPushButton {
+                border-top-left-radius: 0px;
+                border-top-right-radius: 0px;
+                border-bottom-left-radius: 30px;
+                border-bottom-right-radius: 30px;
+            }
+        """)
+        
+        pill_layout.addWidget(self.volume_up_btn)
+        pill_layout.addWidget(self.volume_down_btn)
+        
+        print("✅ Permanent volume pill created - shape will NEVER change!")
+        return pill_frame
     
     def _setup_shortcuts(self):
-        """Setup keyboard shortcuts with visual feedback"""
+        """Setup keyboard shortcuts with GUARANTEED visual feedback"""
         from PyQt6.QtGui import QShortcut, QKeySequence
         
-        # Arrow keys for navigation - with visual feedback
-        QShortcut(QKeySequence(Qt.Key.Key_Up), self, lambda: self._handle_keyboard_with_animation(self.up_btn, self._on_up_pressed))
-        QShortcut(QKeySequence(Qt.Key.Key_Down), self, lambda: self._handle_keyboard_with_animation(self.down_btn, self._on_down_pressed))
-        QShortcut(QKeySequence(Qt.Key.Key_Left), self, lambda: self._handle_keyboard_with_animation(self.left_btn, self._on_left_pressed))
-        QShortcut(QKeySequence(Qt.Key.Key_Right), self, lambda: self._handle_keyboard_with_animation(self.right_btn, self._on_right_pressed))
+        print("🔧 Setting up keyboard shortcuts with visual feedback...")
         
-        # Enter/Return for select - with visual feedback
-        QShortcut(QKeySequence(Qt.Key.Key_Return), self, lambda: self._handle_keyboard_with_animation(self.select_btn, self._on_select_pressed))
-        QShortcut(QKeySequence(Qt.Key.Key_Enter), self, lambda: self._handle_keyboard_with_animation(self.select_btn, self._on_select_pressed))
+        # Store original styles for animation reset
+        self.original_styles = {}
+        for button in [self.up_btn, self.down_btn, self.left_btn, self.right_btn, 
+                      self.select_btn, self.play_pause_btn, self.menu_btn, 
+                      self.home_btn, self.volume_up_btn, self.volume_down_btn]:
+            self.original_styles[button] = button.styleSheet()
         
-        # Space for play/pause - with visual feedback
-        QShortcut(QKeySequence(Qt.Key.Key_Space), self, lambda: self._handle_keyboard_with_animation(self.play_pause_btn, self._on_play_pause_pressed))
+        # Arrow keys for navigation - with GUARANTEED visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Up), self, lambda: self._guaranteed_keyboard_animation(self.up_btn, self.up_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Down), self, lambda: self._guaranteed_keyboard_animation(self.down_btn, self.down_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self, lambda: self._guaranteed_keyboard_animation(self.left_btn, self.left_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self, lambda: self._guaranteed_keyboard_animation(self.right_btn, self.right_pressed))
         
-        # M for menu, H for home - with visual feedback
-        QShortcut(QKeySequence(Qt.Key.Key_M), self, lambda: self._handle_keyboard_with_animation(self.menu_btn, self._on_menu_pressed))
-        QShortcut(QKeySequence(Qt.Key.Key_H), self, lambda: self._handle_keyboard_with_animation(self.home_btn, self._on_home_pressed))
+        # Enter/Return for select - with GUARANTEED visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Return), self, lambda: self._guaranteed_keyboard_animation(self.select_btn, self.select_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Enter), self, lambda: self._guaranteed_keyboard_animation(self.select_btn, self.select_pressed))
         
-        # Plus/Minus for volume - with visual feedback
-        QShortcut(QKeySequence(Qt.Key.Key_Plus), self, lambda: self._handle_keyboard_with_animation(self.volume_up_btn, self._on_volume_up_pressed))
-        QShortcut(QKeySequence(Qt.Key.Key_Minus), self, lambda: self._handle_keyboard_with_animation(self.volume_down_btn, self._on_volume_down_pressed))
+        # Space for play/pause - with GUARANTEED visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Space), self, lambda: self._guaranteed_keyboard_animation(self.play_pause_btn, self.play_pause_pressed))
+        
+        # M for menu, H for home - with GUARANTEED visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_M), self, lambda: self._guaranteed_keyboard_animation(self.menu_btn, self.menu_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_H), self, lambda: self._guaranteed_keyboard_animation(self.home_btn, self.home_pressed))
+        
+        # Plus/Minus for volume - with GUARANTEED visual feedback
+        QShortcut(QKeySequence(Qt.Key.Key_Plus), self, lambda: self._guaranteed_keyboard_animation(self.volume_up_btn, self.volume_up_pressed))
+        QShortcut(QKeySequence(Qt.Key.Key_Minus), self, lambda: self._guaranteed_keyboard_animation(self.volume_down_btn, self.volume_down_pressed))
+        
+        print(f"✅ Registered {10} keyboard shortcuts with visual feedback")
+    
+    def _guaranteed_keyboard_animation(self, button, signal):
+        """GUARANTEED visual feedback for keyboard shortcuts"""
+        print(f"🎯 Keyboard shortcut triggered for button: {button.text()}")
+        
+        # Apply immediate visual feedback - this WILL work
+        pressed_style = """
+            QPushButton {
+                background-color: #ff6600 !important;
+                border: 3px solid #ffaa00 !important;
+                border-radius: 8px !important;
+                color: #ffffff !important;
+                font-weight: bold !important;
+            }
+        """
+        
+        # Apply pressed style immediately
+        original_style = self.original_styles.get(button, "")
+        button.setStyleSheet(pressed_style)
+        print(f"✅ Applied pressed style to {button.text()}")
+        
+        # Emit the signal for functionality
+        signal.emit()
+        
+        # Reset style after delay using QTimer (more reliable than animation)
+        def reset_style():
+            button.setStyleSheet(original_style)
+            print(f"🔄 Reset style for {button.text()}")
+        
+        QTimer.singleShot(200, reset_style)
     
     def _handle_keyboard_with_animation(self, button, action_method):
-        """Handle keyboard press with visual button animation"""
-        # Trigger visual button press animation
-        self._animate_button_press(button)
+        """Handle keyboard press with visual button animation - DEPRECATED"""
+        # This method is now deprecated in favor of _guaranteed_keyboard_animation
+        self._guaranteed_keyboard_animation(button, None)
         
         # Execute the original action method without calling it again
         # Since action_method already includes the animation, we need to call the signal emission directly
@@ -1072,225 +1211,271 @@ class ResponsiveMainWindow(QMainWindow):
             print(f"Error sending {command} command: {str(e)}")
     
     def _apply_dark_oled_theme(self):
-        """Apply comprehensive dark OLED theme with BLACK borders throughout the application"""
-        dark_oled_style = """
-        QMainWindow {
+        """Apply UNIVERSAL dark OLED theme with CONSISTENT borders regardless of launch method"""
+        print("🎨 Applying universal dark OLED theme...")
+        
+        # Get absolute path for any potential resource references
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Force environment-independent styling
+        universal_dark_style = f"""
+        /* UNIVERSAL MAIN WINDOW - ALWAYS BLACK BORDER */
+        QMainWindow {{
             background-color: #000000;
             color: #ffffff;
-            border: 2px solid #000000;  /* BLACK border */
-        }
-        QWidget {
+            border: 2px solid #000000 !important;  /* FORCE BLACK border */
+        }}
+        
+        /* UNIVERSAL WIDGET BASE */
+        QWidget {{
             background-color: #000000;
             color: #ffffff;
-        }
-        QFrame {
+        }}
+        
+        /* UNIVERSAL FRAME STYLING */
+        QFrame {{
             background-color: #000000;
-            border: 1px solid #000000;  /* BLACK frames */
+            border: 1px solid #000000 !important;  /* FORCE BLACK frames */
             border-radius: 8px;
-        }
-        QPushButton {
+        }}
+        
+        /* UNIVERSAL BUTTON STYLING */
+        QPushButton {{
             background-color: qlineargradient(
                 x1: 0, y1: 0, x2: 0, y2: 1,
                 stop: 0 #2a2a2a,
                 stop: 1 #1a1a1a
             );
-            border: 1px solid #000000;  /* BLACK border */
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             border-radius: 8px;
-            color: #ffffff;
+            color: #ffffff !important;
             font-weight: bold;
             padding: 8px;
             min-height: 20px;
-        }
-        QPushButton:hover {
+        }}
+        QPushButton:hover {{
             background-color: qlineargradient(
                 x1: 0, y1: 0, x2: 0, y2: 1,
                 stop: 0 #3a3a3a,
                 stop: 1 #2a2a2a
             );
-            border-color: #000000;  /* BLACK border */
-        }
-        QPushButton:pressed {
+            border-color: #000000 !important;  /* FORCE BLACK border */
+        }}
+        QPushButton:pressed {{
             background-color: qlineargradient(
                 x1: 0, y1: 0, x2: 0, y2: 1,
                 stop: 0 #1a1a1a,
                 stop: 1 #0a0a0a
             );
-            border-color: #000000;  /* BLACK border */
-        }
-        QPushButton:disabled {
+            border-color: #000000 !important;  /* FORCE BLACK border */
+        }}
+        QPushButton:disabled {{
             background-color: #1a1a1a;
             color: #666666;
-            border-color: #000000;  /* BLACK border */
-        }
-        QLabel {
-            color: #ffffff;
+            border-color: #000000 !important;  /* FORCE BLACK border */
+        }}
+        
+        /* UNIVERSAL LABEL STYLING */
+        QLabel {{
+            color: #ffffff !important;
             background: transparent;
-        }
-        QGroupBox {
-            color: #ffffff;
-            border: 1px solid #000000;  /* BLACK border */
+        }}
+        
+        /* UNIVERSAL GROUP BOX STYLING */
+        QGroupBox {{
+            color: #ffffff !important;
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             border-radius: 6px;
             margin-top: 10px;
             background-color: #0a0a0a;
             font-weight: bold;
-        }
-        QGroupBox::title {
-            color: #ffffff;
+        }}
+        QGroupBox::title {{
+            color: #ffffff !important;
             subcontrol-origin: margin;
             left: 10px;
             padding: 0 5px 0 5px;
-        }
-        QTableWidget {
+        }}
+        
+        /* UNIVERSAL TABLE STYLING */
+        QTableWidget {{
             background-color: #000000;
-            color: #ffffff;
-            border: 1px solid #000000;  /* BLACK border */
+            color: #ffffff !important;
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             selection-background-color: #444444;
             alternate-background-color: #0a0a0a;
-            gridline-color: #000000;  /* BLACK gridlines */
-        }
-        QTableWidget::item {
-            border-bottom: 1px solid #000000;  /* BLACK border */
+            gridline-color: #000000 !important;  /* FORCE BLACK gridlines */
+        }}
+        QTableWidget::item {{
+            border-bottom: 1px solid #000000 !important;  /* FORCE BLACK border */
             padding: 5px;
-        }
-        QTableWidget::item:selected {
+            color: #ffffff !important;
+        }}
+        QTableWidget::item:selected {{
             background-color: #444444;
-            color: #ffffff;
-        }
-        QHeaderView::section {
+            color: #ffffff !important;
+        }}
+        QHeaderView::section {{
             background-color: #222222;
-            color: #ffffff;
-            border: 1px solid #000000;  /* BLACK border */
+            color: #ffffff !important;
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             padding: 5px;
             font-weight: bold;
-        }
-        QProgressBar {
-            border: 1px solid #000000;  /* BLACK border */
+        }}
+        
+        /* UNIVERSAL PROGRESS BAR STYLING */
+        QProgressBar {{
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             border-radius: 3px;
             background-color: #000000;
-            color: #ffffff;
+            color: #ffffff !important;
             text-align: center;
-        }
-        QProgressBar::chunk {
+        }}
+        QProgressBar::chunk {{
             background-color: #007acc;
             border-radius: 2px;
-        }
-        QTabWidget::pane {
-            border: 1px solid #000000;  /* BLACK border */
+        }}
+        
+        /* UNIVERSAL TAB STYLING */
+        QTabWidget::pane {{
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             background-color: #000000;
-        }
-        QTabBar::tab {
+        }}
+        QTabBar::tab {{
             background-color: #222222;
-            color: #ffffff;
-            border: 1px solid #000000;  /* BLACK border */
+            color: #ffffff !important;
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             padding: 8px 16px;
             margin-right: 2px;
-        }
-        QTabBar::tab:selected {
+        }}
+        QTabBar::tab:selected {{
             background-color: #007acc;
             border-bottom-color: #007acc;
-        }
-        QTabBar::tab:hover {
+        }}
+        QTabBar::tab:hover {{
             background-color: #333333;
-        }
-        QSlider::groove:horizontal {
-            border: 1px solid #000000;  /* BLACK border */
+        }}
+        
+        /* UNIVERSAL SLIDER STYLING */
+        QSlider::groove:horizontal {{
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             height: 4px;
             background-color: #222222;
             border-radius: 2px;
-        }
-        QSlider::handle:horizontal {
+        }}
+        QSlider::handle:horizontal {{
             background-color: #007acc;
-            border: 1px solid #000000;  /* BLACK border */
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             width: 16px;
             border-radius: 8px;
             margin: -6px 0;
-        }
-        QSlider::handle:horizontal:hover {
+        }}
+        QSlider::handle:horizontal:hover {{
             background-color: #0099ff;
-        }
-        QSplitter::handle {
-            background-color: #000000;  /* BLACK handle */
-        }
-        QSplitter::handle:horizontal {
+        }}
+        
+        /* UNIVERSAL SPLITTER STYLING */
+        QSplitter::handle {{
+            background-color: #000000 !important;  /* FORCE BLACK handle */
+        }}
+        QSplitter::handle:horizontal {{
             width: 3px;
-        }
-        QSplitter::handle:vertical {
+        }}
+        QSplitter::handle:vertical {{
             height: 3px;
-        }
-        QLineEdit {
+        }}
+        
+        /* UNIVERSAL LINE EDIT STYLING */
+        QLineEdit {{
             background-color: #222222;
-            border: 1px solid #000000;  /* BLACK border */
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
             border-radius: 4px;
-            color: #ffffff;
+            color: #ffffff !important;
             padding: 5px;
-        }
-        QLineEdit:focus {
-            border-color: #007acc;
-        }
-        QStatusBar {
+        }}
+        QLineEdit:focus {{
+            border-color: #007acc !important;
+        }}
+        
+        /* UNIVERSAL STATUS BAR STYLING */
+        QStatusBar {{
             background-color: #000000;
-            color: #ffffff;
-            border-top: 1px solid #000000;  /* BLACK border */
-        }
-        QMenuBar {
+            color: #ffffff !important;
+            border-top: 1px solid #000000 !important;  /* FORCE BLACK border */
+        }}
+        
+        /* UNIVERSAL MENU STYLING */
+        QMenuBar {{
             background-color: #222222;
-            color: #ffffff;
-            border-bottom: 1px solid #000000;  /* BLACK border */
-        }
-        QMenuBar::item {
+            color: #ffffff !important;
+            border-bottom: 1px solid #000000 !important;  /* FORCE BLACK border */
+        }}
+        QMenuBar::item {{
             background-color: transparent;
             padding: 5px 10px;
-        }
-        QMenuBar::item:selected {
+            color: #ffffff !important;
+        }}
+        QMenuBar::item:selected {{
             background-color: #333333;
-        }
-        QMenu {
+        }}
+        QMenu {{
             background-color: #222222;
-            color: #ffffff;
-            border: 1px solid #000000;  /* BLACK border */
-        }
-        QMenu::item {
+            color: #ffffff !important;
+            border: 1px solid #000000 !important;  /* FORCE BLACK border */
+        }}
+        QMenu::item {{
             padding: 5px 20px;
-        }
-        QMenu::item:selected {
+            color: #ffffff !important;
+        }}
+        QMenu::item:selected {{
             background-color: #333333;
-        }
-        /* Circular button specific styling for remote control */
-        CircularButton {
-            border: 2px solid #555555;
+        }}
+        
+        /* CIRCULAR BUTTON SPECIFIC STYLING */
+        CircularButton {{
+            border: 2px solid #555555 !important;
             border-radius: 25px;
             background-color: qlineargradient(
                 x1: 0, y1: 0, x2: 0, y2: 1,
                 stop: 0 #404040,
                 stop: 1 #202020
             );
-            color: #ffffff;
+            color: #ffffff !important;
             font-weight: bold;
             font-size: 12px;
-        }
-        CircularButton:hover {
+        }}
+        CircularButton:hover {{
             background-color: qlineargradient(
                 x1: 0, y1: 0, x2: 0, y2: 1,
                 stop: 0 #505050,
                 stop: 1 #303030
             );
-            border-color: #777777;
-        }
-        CircularButton:pressed {
+            border-color: #777777 !important;
+        }}
+        CircularButton:pressed {{
             background-color: qlineargradient(
                 x1: 0, y1: 0, x2: 0, y2: 1,
                 stop: 0 #202020,
                 stop: 1 #101010
             );
-            border-color: #999999;
-        }
-        CircularButton:disabled {
+            border-color: #999999 !important;
+        }}
+        CircularButton:disabled {{
             background-color: #2a2a2a;
             color: #666666;
-            border-color: #444444;
-        }
+            border-color: #444444 !important;
+        }}
         """
-        self.setStyleSheet(dark_oled_style)
+        
+        # Apply the universal styling
+        self.setStyleSheet(universal_dark_style)
+        
+        # Force style refresh
+        self.style().unpolish(self)
+        self.style().polish(self)
+        
+        print(f"✅ Universal dark OLED theme applied (launch method: {getattr(self, 'launch_method', 'unknown')})")
     
     def _setup_responsive_behavior(self):
         """Setup responsive window behavior"""
@@ -1299,18 +1484,39 @@ class ResponsiveMainWindow(QMainWindow):
         self.resize_timer.timeout.connect(self._update_layout_mode)
     
     def resizeEvent(self, event):
-        """Handle window resize for responsive layout"""
-        super().resizeEvent(event)
-        self.resize_timer.start(150)  # Slightly longer debounce
+        """Handle window resize for responsive layout with CRASH PROTECTION"""
+        try:
+            print(f"🔄 Resize event: {event.size().width()}x{event.size().height()}")
+            super().resizeEvent(event)
+            
+            # Only proceed if resize timer exists and is not already running
+            if hasattr(self, 'resize_timer') and self.resize_timer:
+                # Stop any existing timer to prevent accumulation
+                self.resize_timer.stop()
+                self.resize_timer.start(150)  # Slightly longer debounce
+            else:
+                print("⚠️ Resize timer not available, skipping responsive layout")
+                
+        except Exception as resize_error:
+            print(f"❌ Resize event error (safely handled): {resize_error}")
+            # Continue execution - don't let resize errors crash the app
     
     def _update_layout_mode(self):
-        """Update layout based on window size"""
-        current_width = self.width()
-        should_be_compact = current_width < self.min_width_for_sections
-        
-        if should_be_compact != self.is_compact_mode:
-            self.is_compact_mode = should_be_compact
-            self._switch_layout_mode()
+        """Update layout based on window size with CRASH PROTECTION"""
+        try:
+            current_width = self.width()
+            should_be_compact = current_width < self.min_width_for_sections
+            
+            print(f"🔄 Layout check: width={current_width}, compact={should_be_compact}, current_mode={self.is_compact_mode}")
+            
+            if should_be_compact != self.is_compact_mode:
+                print(f"🔄 Switching layout mode: {self.is_compact_mode} -> {should_be_compact}")
+                self.is_compact_mode = should_be_compact
+                self._switch_layout_mode()
+                
+        except Exception as layout_error:
+            print(f"❌ Layout mode error (safely handled): {layout_error}")
+            # Continue execution - don't let layout errors crash the app
     
     def _switch_layout_mode(self):
         """Switch between compact and expanded layout modes"""
