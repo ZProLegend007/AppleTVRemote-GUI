@@ -43,6 +43,107 @@ class CircularButton(QPushButton):
         }}
         ''')
 
+class VolumePickContainer(QWidget):
+    """Permanent pill-shaped container for volume buttons that NEVER loses shape."""
+    
+    def __init__(self, device_controller: DeviceController):
+        super().__init__()
+        self.device_controller = device_controller
+        self.setFixedSize(80, 120)
+        self._setup_ui()
+        self._setup_shortcuts()
+        
+        # PERMANENT pill styling that NEVER changes
+        self.setStyleSheet("""
+            VolumePickContainer {
+                background-color: transparent;
+                border: 3px solid #444444;
+                border-radius: 40px;
+            }
+        """)
+    
+    def _setup_ui(self):
+        """Set up the pill container UI."""
+        layout = QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(3, 3, 3, 3)
+        
+        # Volume buttons with NO borders (container provides pill)
+        self.volume_up_btn = QPushButton("🔊")
+        self.volume_down_btn = QPushButton("🔉")
+        
+        # Style buttons to fit in pill container - NO individual borders
+        button_style = """
+            QPushButton {
+                background-color: #2a2a2a;
+                border: none;  /* NO BORDER - container provides pill */
+                border-radius: 0px;  /* Sharp internal corners */
+                color: white;
+                font-size: 16px;
+                min-height: 50px;
+            }
+            QPushButton:hover {
+                background-color: #3a3a3a;
+            }
+            QPushButton:pressed {
+                background-color: #1a1a1a;  /* Only background changes */
+            }
+            QPushButton:disabled {
+                background-color: #2a2a2a;
+                color: #666666;
+            }
+        """
+        
+        self.volume_up_btn.setStyleSheet(button_style)
+        self.volume_down_btn.setStyleSheet(button_style)
+        
+        # Connect to device controller
+        self.volume_up_btn.clicked.connect(self._on_volume_up_clicked)
+        self.volume_down_btn.clicked.connect(self._on_volume_down_clicked)
+        
+        layout.addWidget(self.volume_up_btn)
+        layout.addWidget(self.volume_down_btn)
+        
+    def _setup_shortcuts(self):
+        """Set up keyboard shortcuts for volume buttons with visual feedback."""
+        QShortcut(QKeySequence("+"), self, lambda: self._trigger_keyboard_visual_feedback(self.volume_up_btn))
+        QShortcut(QKeySequence("-"), self, lambda: self._trigger_keyboard_visual_feedback(self.volume_down_btn))
+        QShortcut(QKeySequence("="), self, lambda: self._trigger_keyboard_visual_feedback(self.volume_up_btn))  # For keyboards without dedicated +
+    
+    def _trigger_keyboard_visual_feedback(self, button):
+        """ACTUALLY show visual feedback when keyboard pressed."""
+        # Store original style
+        original_style = button.styleSheet()
+        
+        # Apply pressed style  
+        button.setStyleSheet(original_style + """
+            QPushButton {
+                background-color: #0a0a0a !important;
+                border: 2px solid #ffffff !important;
+            }
+        """)
+        
+        # Execute button action
+        button.click()
+        
+        # Reset appearance after delay
+        QTimer.singleShot(200, lambda: button.setStyleSheet(original_style))
+    
+    def set_enabled(self, enabled: bool):
+        """Enable or disable volume buttons."""
+        self.volume_up_btn.setEnabled(enabled)
+        self.volume_down_btn.setEnabled(enabled)
+    
+    @qasync.asyncSlot()
+    async def _on_volume_up_clicked(self):
+        """Handle volume up button click."""
+        await self.device_controller.remote_volume_up()
+    
+    @qasync.asyncSlot()
+    async def _on_volume_down_clicked(self):
+        """Handle volume down button click."""
+        await self.device_controller.remote_volume_down()
+
 class DirectionalPad(QWidget):
     """Directional pad widget for Apple TV remote."""
     
@@ -84,14 +185,33 @@ class DirectionalPad(QWidget):
         layout.addWidget(self.down_button, 2, 1, Qt.AlignmentFlag.AlignCenter)
     
     def _setup_shortcuts(self):
-        """Set up keyboard shortcuts for directional pad."""
+        """Set up keyboard shortcuts for directional pad with visual feedback."""
         # Arrow keys
-        QShortcut(QKeySequence("Up"), self, self._on_up_clicked)
-        QShortcut(QKeySequence("Down"), self, self._on_down_clicked)
-        QShortcut(QKeySequence("Left"), self, self._on_left_clicked)
-        QShortcut(QKeySequence("Right"), self, self._on_right_clicked)
-        QShortcut(QKeySequence("Return"), self, self._on_select_clicked)
-        QShortcut(QKeySequence("Enter"), self, self._on_select_clicked)
+        QShortcut(QKeySequence("Up"), self, lambda: self._trigger_keyboard_visual_feedback(self.up_button))
+        QShortcut(QKeySequence("Down"), self, lambda: self._trigger_keyboard_visual_feedback(self.down_button))
+        QShortcut(QKeySequence("Left"), self, lambda: self._trigger_keyboard_visual_feedback(self.left_button))
+        QShortcut(QKeySequence("Right"), self, lambda: self._trigger_keyboard_visual_feedback(self.right_button))
+        QShortcut(QKeySequence("Return"), self, lambda: self._trigger_keyboard_visual_feedback(self.select_button))
+        QShortcut(QKeySequence("Enter"), self, lambda: self._trigger_keyboard_visual_feedback(self.select_button))
+    
+    def _trigger_keyboard_visual_feedback(self, button):
+        """ACTUALLY show visual feedback when keyboard pressed."""
+        # Store original style
+        original_style = button.styleSheet()
+        
+        # Apply pressed style
+        button.setStyleSheet(original_style + """
+            CircularButton {
+                background-color: #0a0a0a !important;
+                border: 2px solid #ffffff !important;
+            }
+        """)
+        
+        # Execute button action
+        button.click()
+        
+        # Reset appearance after delay
+        QTimer.singleShot(200, lambda: button.setStyleSheet(original_style))
     
     def set_enabled(self, enabled: bool):
         """Enable or disable all directional pad buttons."""
@@ -206,21 +326,13 @@ class RemoteControlWidget(QWidget):
         
         right_column.addWidget(system_group)
         
-        # Volume controls
+        # Volume controls - Use permanent pill container
         volume_group = QGroupBox("Volume")
         volume_layout = QVBoxLayout(volume_group)
         
-        volume_buttons_layout = QHBoxLayout()
-        
-        self.volume_down_button = QPushButton("Vol -")
-        self.volume_down_button.clicked.connect(self._on_volume_down_clicked)
-        volume_buttons_layout.addWidget(self.volume_down_button)
-        
-        self.volume_up_button = QPushButton("Vol +")
-        self.volume_up_button.clicked.connect(self._on_volume_up_clicked)
-        volume_buttons_layout.addWidget(self.volume_up_button)
-        
-        volume_layout.addLayout(volume_buttons_layout)
+        # Use the permanent pill container
+        self.volume_pill = VolumePickContainer(self.device_controller)
+        volume_layout.addWidget(self.volume_pill, 0, Qt.AlignmentFlag.AlignCenter)
         
         # Volume slider (for display/feedback)
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
@@ -278,16 +390,32 @@ class RemoteControlWidget(QWidget):
         self.device_controller.device_disconnected.connect(self._on_device_disconnected)
     
     def _setup_shortcuts(self):
-        """Set up keyboard shortcuts."""
-        # System controls
-        QShortcut(QKeySequence("Space"), self, self._on_play_pause_clicked)
-        QShortcut(QKeySequence("M"), self, self._on_menu_clicked)
-        QShortcut(QKeySequence("H"), self, self._on_home_clicked)
+        """Set up keyboard shortcuts with visual feedback."""
+        # System controls with visual feedback
+        QShortcut(QKeySequence("Space"), self, lambda: self._trigger_keyboard_visual_feedback(self.play_pause_button))
+        QShortcut(QKeySequence("M"), self, lambda: self._trigger_keyboard_visual_feedback(self.menu_button))
+        QShortcut(QKeySequence("H"), self, lambda: self._trigger_keyboard_visual_feedback(self.home_button))
         
-        # Volume controls
-        QShortcut(QKeySequence("+"), self, self._on_volume_up_clicked)
-        QShortcut(QKeySequence("-"), self, self._on_volume_down_clicked)
-        QShortcut(QKeySequence("="), self, self._on_volume_up_clicked)  # For keyboards without dedicated +
+        # Note: Volume shortcuts are handled by VolumePickContainer
+    
+    def _trigger_keyboard_visual_feedback(self, button):
+        """ACTUALLY show visual feedback when keyboard pressed."""
+        # Store original style
+        original_style = button.styleSheet()
+        
+        # Apply pressed style
+        button.setStyleSheet(original_style + """
+            QPushButton {
+                background-color: #0a0a0a !important;
+                border: 2px solid #ffffff !important;
+            }
+        """)
+        
+        # Execute button action
+        button.click()
+        
+        # Reset appearance after delay
+        QTimer.singleShot(200, lambda: button.setStyleSheet(original_style))
     
     def _update_ui_state(self):
         """Update UI state based on device connection."""
@@ -299,8 +427,7 @@ class RemoteControlWidget(QWidget):
         self.menu_button.setEnabled(has_connection)
         self.home_button.setEnabled(has_connection)
         self.play_pause_button.setEnabled(has_connection)
-        self.volume_up_button.setEnabled(has_connection)
-        self.volume_down_button.setEnabled(has_connection)
+        self.volume_pill.set_enabled(has_connection)
         
         # Update connection status
         if has_connection:
@@ -340,13 +467,3 @@ class RemoteControlWidget(QWidget):
     async def _on_play_pause_clicked(self):
         """Handle play/pause button click."""
         await self.device_controller.remote_play_pause()
-    
-    @qasync.asyncSlot()
-    async def _on_volume_up_clicked(self):
-        """Handle volume up button click."""
-        await self.device_controller.remote_volume_up()
-    
-    @qasync.asyncSlot()
-    async def _on_volume_down_clicked(self):
-        """Handle volume down button click."""
-        await self.device_controller.remote_volume_down()
