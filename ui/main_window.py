@@ -121,18 +121,25 @@ class DiscoveryPanel(QFrame):
     
     @qasync.asyncSlot()
     async def _start_discovery(self):
-        """Start real device discovery using pyatv"""
+        """Start real device discovery using pyatv with loading animation and terminal output"""
+        # Start loading animation
         self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Indeterminate
-        self.status_label.setText("Scanning for Apple TV devices...")
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress bar
+        self.status_label.setText("Discovering...")
+        self.discover_btn.setText("Discovering...")  # Button text indicates loading state
         self.discover_btn.setEnabled(False)
         self.discovered_devices.clear()
         self._populate_device_table()
         
+        # Terminal output for debugging
+        print("🔍 Starting Apple TV discovery...")
+        print("Running: pyatv scan")
+        
         try:
             import pyatv
             
-            # Real device discovery
+            # Real device discovery with terminal output
+            print("📡 Scanning for Apple TV devices...")
             devices = await pyatv.scan(timeout=5)
             
             self.discovered_devices = []
@@ -144,16 +151,29 @@ class DiscoveryPanel(QFrame):
                     "device": device  # Store the actual pyatv device object
                 }
                 self.discovered_devices.append(device_info)
+                
+                # Real-time terminal output of discovered devices
+                print(f"📺 Found device: {device.name} ({device_info['model']}) at {device_info['address']}")
             
             self._populate_device_table()
-            self.status_label.setText(f"Found {len(self.discovered_devices)} device(s)")
+            device_count = len(self.discovered_devices)
+            self.status_label.setText(f"Found {device_count} device(s)")
+            
+            # Terminal output summary
+            print(f"✅ Discovery completed: {device_count} device(s) found")
             
         except ImportError:
-            self.status_label.setText("Error: pyatv not installed")
+            error_msg = "Error: pyatv not installed"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
         except Exception as e:
-            self.status_label.setText(f"Discovery error: {str(e)}")
+            error_msg = f"Discovery error: {str(e)}"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
         finally:
+            # Stop loading animation
             self.progress_bar.setVisible(False)
+            self.discover_btn.setText("Discover Apple TVs")  # Reset button text
             self.discover_btn.setEnabled(True)
     
     def _populate_device_table(self):
@@ -285,55 +305,63 @@ class RemotePanel(QFrame):
         self.menu_btn.clicked.connect(self._on_menu_pressed)
         layout.addWidget(self.menu_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
-        # Directional pad - improved box layout
+        # Directional pad - responsive arrow layout with even spacing
         dpad_frame = QFrame()
         dpad_layout = QGridLayout(dpad_frame)
-        dpad_layout.setSpacing(12)  # More even spacing
-        dpad_layout.setContentsMargins(20, 20, 20, 20)
+        dpad_layout.setSpacing(20)  # Even spacing between buttons
+        dpad_layout.setContentsMargins(40, 40, 40, 40)  # Larger margins for better centering
         
         # Create directional buttons with consistent sizing and modern layout
         button_size = 50
         
         self.up_btn = self._create_standard_button("↑", (button_size, button_size))
         self.up_btn.clicked.connect(self._on_up_pressed)
-        dpad_layout.addWidget(self.up_btn, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        dpad_layout.addWidget(self.up_btn, 0, 1, Qt.AlignmentFlag.AlignCenter)  # Top center
         
         self.left_btn = self._create_standard_button("←", (button_size, button_size))
         self.left_btn.clicked.connect(self._on_left_pressed)
-        dpad_layout.addWidget(self.left_btn, 1, 0, Qt.AlignmentFlag.AlignCenter)
+        dpad_layout.addWidget(self.left_btn, 1, 0, Qt.AlignmentFlag.AlignCenter)  # Middle left
         
         # OK button in center - standard rounded button (not circular)
         self.select_btn = self._create_standard_button("OK", (60, 60))
         self.select_btn.clicked.connect(self._on_select_pressed)
-        dpad_layout.addWidget(self.select_btn, 1, 1, Qt.AlignmentFlag.AlignCenter)
+        dpad_layout.addWidget(self.select_btn, 1, 1, Qt.AlignmentFlag.AlignCenter)  # Middle center
         
         self.right_btn = self._create_standard_button("→", (button_size, button_size))
         self.right_btn.clicked.connect(self._on_right_pressed)
-        dpad_layout.addWidget(self.right_btn, 1, 2, Qt.AlignmentFlag.AlignCenter)
+        dpad_layout.addWidget(self.right_btn, 1, 2, Qt.AlignmentFlag.AlignCenter)  # Middle right
         
         self.down_btn = self._create_standard_button("↓", (button_size, button_size))
         self.down_btn.clicked.connect(self._on_down_pressed)
-        dpad_layout.addWidget(self.down_btn, 2, 1, Qt.AlignmentFlag.AlignCenter)
+        dpad_layout.addWidget(self.down_btn, 2, 1, Qt.AlignmentFlag.AlignCenter)  # Bottom center
+        
+        # Make layout responsive with equal stretch factors for proportional scaling
+        dpad_layout.setColumnStretch(0, 1)  # Left column
+        dpad_layout.setColumnStretch(1, 1)  # Center column  
+        dpad_layout.setColumnStretch(2, 1)  # Right column
+        dpad_layout.setRowStretch(0, 1)     # Top row
+        dpad_layout.setRowStretch(1, 1)     # Middle row
+        dpad_layout.setRowStretch(2, 1)     # Bottom row
         
         layout.addWidget(dpad_frame)
         
-        # Media controls - evenly spaced
+        # Media controls layout with volume pill on the right
         media_frame = QFrame()
         media_layout = QHBoxLayout(media_frame)
         media_layout.setSpacing(20)
         media_layout.setContentsMargins(20, 10, 20, 10)
         
+        # Play/Pause button on the left
         self.play_pause_btn = self._create_standard_button("⏯", (50, 50))
         self.play_pause_btn.clicked.connect(self._on_play_pause_pressed)
         media_layout.addWidget(self.play_pause_btn)
         
-        self.volume_up_btn = self._create_standard_button("🔊", (50, 50))
-        self.volume_up_btn.clicked.connect(self._on_volume_up_pressed)
-        media_layout.addWidget(self.volume_up_btn)
+        # Add stretch to push volume pill to the right
+        media_layout.addStretch()
         
-        self.volume_down_btn = self._create_standard_button("🔇", (50, 50))
-        self.volume_down_btn.clicked.connect(self._on_volume_down_pressed)
-        media_layout.addWidget(self.volume_down_btn)
+        # Create Apple TV style volume pill (vertical arrangement)
+        volume_pill_container = self._create_volume_pill()
+        media_layout.addWidget(volume_pill_container)
         
         layout.addWidget(media_frame)
         
@@ -379,6 +407,84 @@ class RemotePanel(QFrame):
         
         # Remove custom light styling - let the global dark theme apply
         return button
+    
+    def _create_volume_pill(self):
+        """Create Apple TV style volume pill buttons"""
+        volume_container = QWidget()
+        volume_layout = QVBoxLayout(volume_container)
+        volume_layout.setSpacing(0)  # No gap between buttons for pill effect
+        volume_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Volume Up (top half of pill)
+        self.volume_up_btn = QPushButton("🔊")
+        self.volume_up_btn.setFixedSize(60, 40)
+        self.volume_up_btn.clicked.connect(self._on_volume_up_pressed)
+        
+        # Volume Down (bottom half of pill) 
+        self.volume_down_btn = QPushButton("🔉")
+        self.volume_down_btn.setFixedSize(60, 40)
+        self.volume_down_btn.clicked.connect(self._on_volume_down_pressed)
+        
+        # Apply pill styling
+        self._apply_pill_styling()
+        
+        volume_layout.addWidget(self.volume_up_btn)
+        volume_layout.addWidget(self.volume_down_btn)
+        
+        return volume_container
+    
+    def _apply_pill_styling(self):
+        """Apply pill button styling for connected volume buttons"""
+        pill_style_top = """
+        QPushButton {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #2a2a2a,
+                stop: 1 #1a1a1a
+            );
+            border: 1px solid #444444;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            border-bottom: none;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        QPushButton:pressed {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #1a1a1a,
+                stop: 1 #0a0a0a
+            );
+        }
+        """
+        
+        pill_style_bottom = """
+        QPushButton {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #2a2a2a,
+                stop: 1 #1a1a1a
+            );
+            border: 1px solid #444444;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            border-top: none;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        QPushButton:pressed {
+            background-color: qlineargradient(
+                x1: 0, y1: 0, x2: 0, y2: 1,
+                stop: 0 #1a1a1a,
+                stop: 1 #0a0a0a
+            );
+        }
+        """
+        
+        self.volume_up_btn.setStyleSheet(pill_style_top)
+        self.volume_down_btn.setStyleSheet(pill_style_bottom)
     
     def _setup_shortcuts(self):
         """Setup keyboard shortcuts"""
