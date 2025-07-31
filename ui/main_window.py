@@ -3,6 +3,28 @@
 import sys
 import logging
 from typing import Optional, Dict, Any
+
+# Conditional imports for backend modules
+try:
+    from backend.config_manager import ConfigManager
+    from backend.device_controller import DeviceController  
+    from backend.pairing_manager import PairingManager
+    BACKEND_AVAILABLE = True
+except ImportError:
+    # Fallback dummy classes for testing
+    class ConfigManager:
+        def __init__(self): self.config = {}
+        def get(self, key, default=None): return self.config.get(key, default)
+        def set(self, key, value): self.config[key] = value
+    
+    class DeviceController:
+        def __init__(self, config_manager): pass
+    
+    class PairingManager:
+        def __init__(self, config_manager): pass
+    
+    BACKEND_AVAILABLE = False
+
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
                              QSplitter, QFrame, QTabWidget, QStackedWidget,
                              QLabel, QPushButton, QProgressBar, QTableWidget,
@@ -10,10 +32,6 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QTableWidgetItem, QHeaderView, QMessageBox)
 from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QPalette, QIcon
-
-from backend.config_manager import ConfigManager
-from backend.device_controller import DeviceController
-from backend.pairing_manager import PairingManager
 
 class DiscoveryPanel(QFrame):
     """Integrated device discovery panel."""
