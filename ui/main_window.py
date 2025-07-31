@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QProgressBar, QTableWidget, QGroupBox, QGridLayout, 
                              QSlider, QTableWidgetItem, QLineEdit, QStatusBar, 
                              QMenuBar, QMessageBox, QApplication)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThreadPool
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot, QThreadPool, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QFont, QAction, QKeySequence, QPixmap
 import asyncio
 import qasync
@@ -42,6 +42,9 @@ class DiscoveryPanel(QFrame):
         self.setFrameStyle(QFrame.Shape.Box)
         self.setLineWidth(1)
         
+        # Ensure minimum size for visibility
+        self.setMinimumSize(250, 400)
+        
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
@@ -55,8 +58,8 @@ class DiscoveryPanel(QFrame):
         self.status_label = QLabel("Ready to discover devices...")
         layout.addWidget(self.status_label)
         
-        # Discover button - match existing button style
-        self.discover_btn = QPushButton("Discover Apple TVs")
+        # Discover button - improved styling
+        self.discover_btn = self._create_modern_button("Discover Apple TVs")
         self.discover_btn.clicked.connect(self._start_discovery)
         layout.addWidget(self.discover_btn)
         
@@ -77,16 +80,45 @@ class DiscoveryPanel(QFrame):
         self.devices_table.verticalHeader().setVisible(False)
         self.devices_table.setAlternatingRowColors(True)
         self.devices_table.itemSelectionChanged.connect(self._on_device_selected)
+        # Set minimum size for table
+        self.devices_table.setMinimumHeight(150)
         devices_layout.addWidget(self.devices_table)
         
         # Pair button
-        self.pair_btn = QPushButton("Pair Selected Device")
+        self.pair_btn = self._create_modern_button("Pair Selected Device")
         self.pair_btn.setEnabled(False)
         self.pair_btn.clicked.connect(self._request_pairing)
         devices_layout.addWidget(self.pair_btn)
         
         layout.addWidget(devices_group)
         layout.addStretch()
+    
+    def _create_modern_button(self, text):
+        """Create modern rounded button with clean styling"""
+        button = QPushButton(text)
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: #f0f0f0;
+                border: 1px solid #ccc;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: bold;
+                min-height: 32px;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+                border-color: #999;
+            }
+            QPushButton:pressed {
+                background-color: #d0d0d0;
+            }
+            QPushButton:disabled {
+                background-color: #f8f8f8;
+                color: #999;
+                border-color: #ddd;
+            }
+        """)
+        return button
     
     def _start_discovery(self):
         """Start device discovery"""
@@ -159,18 +191,22 @@ class RemotePanel(QFrame):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.button_animations = {}
         self._setup_ui()
         self._setup_shortcuts()
     
     def _setup_ui(self):
-        """Setup remote control UI with consistent styling"""
+        """Setup remote control UI with modern styling"""
         # Use existing main window frame styling
         self.setFrameStyle(QFrame.Shape.Box)
         self.setLineWidth(1)
         
+        # Ensure minimum size for visibility
+        self.setMinimumSize(250, 400)
+        
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        layout.setSpacing(15)
         
         # Header
         header = QLabel("Apple TV Remote")
@@ -179,73 +215,177 @@ class RemotePanel(QFrame):
         layout.addWidget(header)
         
         # Menu button
-        self.menu_btn = QPushButton("MENU")
-        self.menu_btn.setMinimumHeight(40)
+        self.menu_btn = self._create_remote_button("MENU", "#e74c3c", (180, 45))
         self.menu_btn.clicked.connect(self._on_menu_pressed)
-        layout.addWidget(self.menu_btn)
+        layout.addWidget(self.menu_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
         # Directional pad
         dpad_frame = QFrame()
         dpad_layout = QGridLayout(dpad_frame)
-        dpad_layout.setSpacing(5)
+        dpad_layout.setSpacing(8)
+        dpad_layout.setContentsMargins(10, 10, 10, 10)
         
-        # Create directional buttons with consistent styling
-        self.up_btn = QPushButton("↑")
-        self.up_btn.setFixedSize(50, 50)
+        # Create directional buttons with modern styling
+        self.up_btn = self._create_dpad_button("↑")
         self.up_btn.clicked.connect(self._on_up_pressed)
-        dpad_layout.addWidget(self.up_btn, 0, 1)
+        dpad_layout.addWidget(self.up_btn, 0, 1, Qt.AlignmentFlag.AlignCenter)
         
-        self.left_btn = QPushButton("←")
-        self.left_btn.setFixedSize(50, 50)
+        self.left_btn = self._create_dpad_button("←")
         self.left_btn.clicked.connect(self._on_left_pressed)
-        dpad_layout.addWidget(self.left_btn, 1, 0)
+        dpad_layout.addWidget(self.left_btn, 1, 0, Qt.AlignmentFlag.AlignCenter)
         
-        self.select_btn = QPushButton("SELECT")
-        self.select_btn.setFixedSize(70, 70)
+        self.select_btn = self._create_dpad_button("SELECT", (80, 80))
         self.select_btn.clicked.connect(self._on_select_pressed)
-        dpad_layout.addWidget(self.select_btn, 1, 1)
+        dpad_layout.addWidget(self.select_btn, 1, 1, Qt.AlignmentFlag.AlignCenter)
         
-        self.right_btn = QPushButton("→")
-        self.right_btn.setFixedSize(50, 50)
+        self.right_btn = self._create_dpad_button("→")
         self.right_btn.clicked.connect(self._on_right_pressed)
-        dpad_layout.addWidget(self.right_btn, 1, 2)
+        dpad_layout.addWidget(self.right_btn, 1, 2, Qt.AlignmentFlag.AlignCenter)
         
-        self.down_btn = QPushButton("↓")
-        self.down_btn.setFixedSize(50, 50)
+        self.down_btn = self._create_dpad_button("↓")
         self.down_btn.clicked.connect(self._on_down_pressed)
-        dpad_layout.addWidget(self.down_btn, 2, 1)
+        dpad_layout.addWidget(self.down_btn, 2, 1, Qt.AlignmentFlag.AlignCenter)
         
         layout.addWidget(dpad_frame)
         
         # Media controls
         media_frame = QFrame()
         media_layout = QHBoxLayout(media_frame)
-        media_layout.setSpacing(10)
+        media_layout.setSpacing(15)
+        media_layout.setContentsMargins(10, 10, 10, 10)
         
-        self.play_pause_btn = QPushButton("⏯")
-        self.play_pause_btn.setFixedSize(45, 45)
+        self.play_pause_btn = self._create_media_button("⏯")
         self.play_pause_btn.clicked.connect(self._on_play_pause_pressed)
         media_layout.addWidget(self.play_pause_btn)
         
-        self.volume_up_btn = QPushButton("🔊")
-        self.volume_up_btn.setFixedSize(45, 45)
+        self.volume_up_btn = self._create_media_button("🔊")
         self.volume_up_btn.clicked.connect(self._on_volume_up_pressed)
         media_layout.addWidget(self.volume_up_btn)
         
-        self.volume_down_btn = QPushButton("🔇")
-        self.volume_down_btn.setFixedSize(45, 45)
+        self.volume_down_btn = self._create_media_button("🔇")
         self.volume_down_btn.clicked.connect(self._on_volume_down_pressed)
         media_layout.addWidget(self.volume_down_btn)
         
         layout.addWidget(media_frame)
         
         # Home button
-        self.home_btn = QPushButton("HOME")
-        self.home_btn.setMinimumHeight(40)
+        self.home_btn = self._create_remote_button("HOME", "#3498db", (180, 45))
         self.home_btn.clicked.connect(self._on_home_pressed)
-        layout.addWidget(self.home_btn)
+        layout.addWidget(self.home_btn, 0, Qt.AlignmentFlag.AlignCenter)
         
         layout.addStretch()
+    
+    def _create_remote_button(self, text, color, size=(180, 45)):
+        """Create styled remote button with modern design"""
+        button = QPushButton(text)
+        button.setFixedSize(*size)
+        button.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        
+        # Modern rounded button styling
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 {color},
+                    stop: 1 {self._darken_color(color)}
+                );
+                border: none;
+                color: white;
+                border-radius: 12px;
+                font-weight: bold;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 {self._darken_color(color, 0.1)},
+                    stop: 1 {self._darken_color(color, 0.2)}
+                );
+            }}
+            QPushButton:pressed {{
+                background: {self._darken_color(color, 0.3)};
+            }}
+        """)
+        return button
+    
+    def _create_dpad_button(self, text, size=(60, 60)):
+        """Create directional pad button with modern design"""
+        button = QPushButton(text)
+        button.setFixedSize(*size)
+        button.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        
+        # Modern circular button styling
+        radius = min(size) // 2
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #f5f5f5,
+                    stop: 1 #e0e0e0
+                );
+                border: 2px solid #ccc;
+                color: #333;
+                border-radius: {radius}px;
+                font-weight: bold;
+                font-size: 14px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #e8e8e8,
+                    stop: 1 #d0d0d0
+                );
+                border-color: #999;
+            }}
+            QPushButton:pressed {{
+                background: #c0c0c0;
+                border-color: #666;
+            }}
+        """)
+        return button
+    
+    def _create_media_button(self, text):
+        """Create media control button with modern design"""
+        button = QPushButton(text)
+        button.setFixedSize(55, 55)
+        button.setFont(QFont("Arial", 18))
+        
+        # Modern circular media button
+        button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #ff9500,
+                    stop: 1 #e67e22
+                );
+                border: none;
+                color: white;
+                border-radius: 27px;
+                font-size: 18px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #e67e22,
+                    stop: 1 #d35400
+                );
+            }
+            QPushButton:pressed {
+                background: #d35400;
+            }
+        """)
+        return button
+    
+    def _darken_color(self, color, factor=0.2):
+        """Darken a hex color by a factor"""
+        # Simple color darkening
+        if color.startswith('#'):
+            color = color[1:]
+        r, g, b = int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
+        r = max(0, int(r * (1 - factor)))
+        g = max(0, int(g * (1 - factor)))
+        b = max(0, int(b * (1 - factor)))
+        return f"#{r:02x}{g:02x}{b:02x}"
     
     def _setup_shortcuts(self):
         """Setup keyboard shortcuts"""
@@ -323,11 +463,35 @@ class RemotePanel(QFrame):
         self.volume_down_pressed.emit()
     
     def _animate_button_press(self, button):
-        """Animate button press for visual feedback"""
-        # Simple style-based animation
+        """Improved button press animation that doesn't stick"""
+        button_id = id(button)
+        
+        # Cancel any existing animation for this button
+        if button_id in self.button_animations:
+            animation = self.button_animations[button_id]
+            if animation.state() == QPropertyAnimation.State.Running:
+                animation.stop()
+        
+        # Create new animation
+        animation = QPropertyAnimation(button, b"styleSheet")
+        animation.setDuration(150)
+        
         original_style = button.styleSheet()
-        button.setStyleSheet("QPushButton { background-color: #0078d4; }")
-        QTimer.singleShot(100, lambda: button.setStyleSheet(original_style))
+        pressed_style = original_style.replace(
+            "QPushButton:pressed", "QPushButton:pressed_temp"
+        ) + "\nQPushButton { background: #007acc !important; }"
+        
+        animation.setStartValue(pressed_style)
+        animation.setEndValue(original_style)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        
+        # Store animation reference
+        self.button_animations[button_id] = animation
+        
+        # Clean up when finished
+        animation.finished.connect(lambda: self.button_animations.pop(button_id, None))
+        
+        animation.start()
 
 class NowPlayingPanel(QFrame):
     """Now playing information panel with consistent styling"""
@@ -338,14 +502,17 @@ class NowPlayingPanel(QFrame):
         self._setup_ui()
     
     def _setup_ui(self):
-        """Setup now playing panel with consistent styling"""
+        """Setup now playing panel with modern styling"""
         # Use existing main window frame styling
         self.setFrameStyle(QFrame.Shape.Box)
         self.setLineWidth(1)
         
+        # Ensure minimum size for visibility
+        self.setMinimumSize(250, 400)
+        
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setSpacing(15)
         
         # Header
         header = QLabel("Now Playing")
@@ -353,15 +520,27 @@ class NowPlayingPanel(QFrame):
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
         
-        # Album artwork placeholder
+        # Album artwork placeholder with modern styling
         artwork_frame = QFrame()
         artwork_frame.setFrameStyle(QFrame.Shape.Box)
         artwork_frame.setFixedSize(180, 180)
+        artwork_frame.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #f8f8f8,
+                    stop: 1 #e8e8e8
+                );
+                border: 1px solid #ccc;
+                border-radius: 8px;
+            }
+        """)
         artwork_layout = QVBoxLayout(artwork_frame)
         
         artwork_label = QLabel("🎵")
         artwork_label.setFont(QFont("Arial", 36))
         artwork_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        artwork_label.setStyleSheet("color: #666;")
         artwork_layout.addWidget(artwork_label)
         
         layout.addWidget(artwork_frame, 0, Qt.AlignmentFlag.AlignCenter)
@@ -393,6 +572,23 @@ class NowPlayingPanel(QFrame):
         progress_layout = QVBoxLayout(progress_group)
         
         self.progress_bar = QProgressBar()
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #ccc;
+                border-radius: 8px;
+                text-align: center;
+                font-weight: bold;
+                background: #f0f0f0;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #4a90e2,
+                    stop: 1 #357abd
+                );
+                border-radius: 6px;
+            }
+        """)
         progress_layout.addWidget(self.progress_bar)
         
         # Time labels
@@ -401,11 +597,13 @@ class NowPlayingPanel(QFrame):
         time_layout.setContentsMargins(0, 0, 0, 0)
         
         self.current_time_label = QLabel("0:00")
+        self.current_time_label.setStyleSheet("color: #666; font-size: 11px;")
         time_layout.addWidget(self.current_time_label)
         
         time_layout.addStretch()
         
         self.total_time_label = QLabel("0:00")
+        self.total_time_label.setStyleSheet("color: #666; font-size: 11px;")
         time_layout.addWidget(self.total_time_label)
         
         progress_layout.addWidget(time_frame)
@@ -418,6 +616,30 @@ class NowPlayingPanel(QFrame):
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(50)
+        self.volume_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #ccc;
+                height: 8px;
+                background: #f0f0f0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #4a90e2;
+                border: 2px solid #357abd;
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                margin: -5px 0;
+            }
+            QSlider::sub-page:horizontal {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #4a90e2,
+                    stop: 1 #357abd
+                );
+                border-radius: 4px;
+            }
+        """)
         volume_layout.addWidget(self.volume_slider)
         
         volume_value_frame = QFrame()
@@ -427,6 +649,7 @@ class NowPlayingPanel(QFrame):
         volume_value_layout.addWidget(QLabel("🔇"))
         volume_value_layout.addStretch()
         self.volume_value_label = QLabel("50%")
+        self.volume_value_label.setStyleSheet("color: #666; font-weight: bold;")
         volume_value_layout.addWidget(self.volume_value_label)
         volume_value_layout.addStretch()
         volume_value_layout.addWidget(QLabel("🔊"))
@@ -469,7 +692,7 @@ class MainWindow(QMainWindow):
         
         # Responsive settings - more conservative breakpoint
         self.is_compact_mode = False
-        self.min_width_for_sections = 800  # More reasonable breakpoint
+        self.min_width_for_sections = 900  # Increased for better layout
         
         self._setup_ui()
         self._setup_connections()
@@ -477,16 +700,19 @@ class MainWindow(QMainWindow):
         self._setup_smooth_transitions()
         self._setup_responsive_behavior()
         
+        # Force initial layout check
+        QTimer.singleShot(100, self._force_initial_layout)
+        
         # Update timer for UI refresh
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self._update_ui)
         self.update_timer.start(5000)  # Update every 5 seconds
     
     def _setup_ui(self):
-        """Setup main window UI maintaining current aesthetic"""
-        self.setWindowTitle("Apple TV Remote")
-        self.setMinimumSize(600, 500)  # Reasonable minimum size
-        self.resize(1000, 700)  # Good default size for three sections
+        """Setup main window UI with fixed layout issues"""
+        self.setWindowTitle("ApplerGUI - Apple TV Remote Control")
+        self.setMinimumSize(700, 500)  # Increased minimum size
+        self.resize(1200, 800)  # Larger default size for better layout
         
         # Central widget
         central_widget = QWidget()
@@ -494,34 +720,39 @@ class MainWindow(QMainWindow):
         
         # Main layout container
         self.main_layout = QVBoxLayout(central_widget)
-        self.main_layout.setContentsMargins(5, 5, 5, 5)
+        self.main_layout.setContentsMargins(8, 8, 8, 8)
+        self.main_layout.setSpacing(5)
         
-        # Tab widget (hidden initially) - use existing styling
+        # Tab widget (hidden initially)
         self.tab_widget = QTabWidget()
         self.tab_widget.setVisible(False)
         self.main_layout.addWidget(self.tab_widget)
         
         # Three-section splitter (visible initially)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setHandleWidth(3)  # Visible splitter handles
         self.main_layout.addWidget(self.splitter)
         
-        # Create panels with consistent styling
+        # Create panels with minimum sizes
         self.discovery_panel = DiscoveryPanel(self.config_manager)
         self.remote_panel = RemotePanel()
         self.now_playing_panel = NowPlayingPanel()
         
-        # Add panels to splitter with reasonable proportions
+        # Add panels to splitter
         self.splitter.addWidget(self.discovery_panel)
         self.splitter.addWidget(self.remote_panel)
         self.splitter.addWidget(self.now_playing_panel)
         
-        # Set reasonable sizes that work at default window size
-        self.splitter.setSizes([300, 300, 300])  # Equal distribution
+        # Set initial sizes - ensure visibility
+        self.splitter.setSizes([350, 350, 350])
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(2, 1)
         
-        # Add panels to tab widget for mobile view
-        self.tab_widget.addTab(self.discovery_panel, "Discovery")
-        self.tab_widget.addTab(self.remote_panel, "Remote")
-        self.tab_widget.addTab(self.now_playing_panel, "Now Playing")
+        # Add panels to tab widget for compact view
+        self.tab_widget.addTab(self.discovery_panel, "🔍 Discovery")
+        self.tab_widget.addTab(self.remote_panel, "📺 Remote")
+        self.tab_widget.addTab(self.now_playing_panel, "🎵 Now Playing")
         
         # Connect signals
         if self.discovery_panel:
@@ -533,6 +764,17 @@ class MainWindow(QMainWindow):
         # Create status bar
         self._create_status_bar()
     
+    def _force_initial_layout(self):
+        """Force initial layout mode to ensure visibility"""
+        self._update_layout_mode()
+        
+        # Debug logging
+        print(f"Window size: {self.width()}x{self.height()}")
+        print(f"Compact mode: {self.is_compact_mode}")
+        print(f"Splitter visible: {self.splitter.isVisible()}")
+        print(f"Tab widget visible: {self.tab_widget.isVisible()}")
+        print(f"Splitter sizes: {self.splitter.sizes()}")
+    
     def _setup_responsive_behavior(self):
         """Setup responsive window behavior"""
         self.resize_timer = QTimer()
@@ -542,7 +784,7 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event):
         """Handle window resize for responsive layout"""
         super().resizeEvent(event)
-        self.resize_timer.start(100)  # Debounce resize events
+        self.resize_timer.start(150)  # Slightly longer debounce
     
     def _update_layout_mode(self):
         """Update layout based on window size"""
