@@ -116,41 +116,7 @@ class DiscoveryPanel(QFrame):
     def _create_clean_button(self, text):
         """Create clean button with consistent styling"""
         button = QPushButton(text)
-        button.setStyleSheet("""
-            QPushButton {
-                background-color: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #f0f0f0,
-                    stop: 1 #e0e0e0
-                );
-                border: 1px solid #a0a0a0;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: normal;
-                min-height: 28px;
-                color: #333;
-            }
-            QPushButton:hover {
-                background-color: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #e8e8e8,
-                    stop: 1 #d8d8d8
-                );
-                border-color: #808080;
-            }
-            QPushButton:pressed {
-                background-color: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #d0d0d0,
-                    stop: 1 #c0c0c0
-                );
-            }
-            QPushButton:disabled {
-                background-color: #f8f8f8;
-                color: #999;
-                border-color: #ddd;
-            }
-        """)
+        # Remove custom light styling - let the global dark theme apply
         return button
     
     @qasync.asyncSlot()
@@ -411,36 +377,7 @@ class RemotePanel(QFrame):
         else:  # Small buttons (arrows, media)
             button.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         
-        # Standard Qt button styling with consistent rounded corners
-        button.setStyleSheet("""
-            QPushButton {
-                background-color: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #f0f0f0,
-                    stop: 1 #e0e0e0
-                );
-                border: 1px solid #a0a0a0;
-                border-radius: 8px;
-                color: #333;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #e8e8e8,
-                    stop: 1 #d8d8d8
-                );
-                border-color: #808080;
-            }
-            QPushButton:pressed {
-                background-color: qlineargradient(
-                    x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #d0d0d0,
-                    stop: 1 #c0c0c0
-                );
-                border-color: #606060;
-            }
-        """)
+        # Remove custom light styling - let the global dark theme apply
         return button
     
     def _setup_shortcuts(self):
@@ -905,7 +842,7 @@ class ResponsiveMainWindow(QMainWindow):
             color: #ffffff;
         }
         QFrame {
-            background-color: #111111;
+            background-color: #000000;
             border: 1px solid #333333;
             border-radius: 8px;
         }
@@ -962,7 +899,7 @@ class ResponsiveMainWindow(QMainWindow):
             padding: 0 5px 0 5px;
         }
         QTableWidget {
-            background-color: #111111;
+            background-color: #000000;
             color: #ffffff;
             border: 1px solid #333333;
             selection-background-color: #444444;
@@ -987,7 +924,7 @@ class ResponsiveMainWindow(QMainWindow):
         QProgressBar {
             border: 1px solid #333333;
             border-radius: 3px;
-            background-color: #111111;
+            background-color: #000000;
             color: #ffffff;
             text-align: center;
         }
@@ -997,7 +934,7 @@ class ResponsiveMainWindow(QMainWindow):
         }
         QTabWidget::pane {
             border: 1px solid #333333;
-            background-color: #111111;
+            background-color: #000000;
         }
         QTabBar::tab {
             background-color: #222222;
@@ -1049,7 +986,7 @@ class ResponsiveMainWindow(QMainWindow):
             border-color: #007acc;
         }
         QStatusBar {
-            background-color: #111111;
+            background-color: #000000;
             color: #ffffff;
             border-top: 1px solid #333333;
         }
