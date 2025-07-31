@@ -83,9 +83,9 @@ class DiscoveryPanel(QFrame):
         self.status_label = QLabel("Ready to discover devices...")
         layout.addWidget(self.status_label)
         
-        # Discover button
+        # Discover button with safe connection
         self.discover_btn = self._create_clean_button("Discover Apple TVs")
-        self.discover_btn.clicked.connect(self._start_discovery)
+        self.discover_btn.clicked.connect(self._safe_start_discovery)
         layout.addWidget(self.discover_btn)
         
         # Progress bar
@@ -155,9 +155,39 @@ class DiscoveryPanel(QFrame):
         # Remove custom light styling - let the global dark theme apply
         return button
     
+    def _safe_start_discovery(self):
+        """Safe discovery start with error handling"""
+        try:
+            # Use asyncio to run the async discovery method
+            import qasync
+            import asyncio
+            
+            # Get current event loop or create new one
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Schedule the async discovery
+            asyncio.create_task(self._start_discovery())
+            
+        except Exception as e:
+            print(f"❌ Discovery start error: {e}")
+            self.status_label.setText(f"❌ Discovery start error: {e}")
+            self._cleanup_discovery_state()
+    
+    def resizeEvent(self, event):
+        """Safe resize event handler"""
+        try:
+            super().resizeEvent(event)
+        except Exception as e:
+            print(f"⚠️ Resize error handled safely: {e}")
+            # Continue without crashing
+    
     @qasync.asyncSlot()
     async def _start_discovery(self):
-        """CRASH-PROOF device discovery with safe threading and error handling"""
+        """CRASH-PROOF device discovery with comprehensive error handling"""
         print("🔍 Starting SAFE Apple TV discovery...")
         
         # Safety check - prevent multiple discoveries
@@ -167,6 +197,25 @@ class DiscoveryPanel(QFrame):
         
         self._discovery_running = True
         
+        try:
+            # Start enhanced loading animation with crash protection
+            self._setup_safe_discovery_ui()
+            
+            # Run actual discovery with comprehensive error handling
+            await self._run_safe_discovery()
+                
+        except Exception as e:
+            error_msg = f"❌ Critical discovery error: {str(e)}"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Clean up timers and state SAFELY
+            self._cleanup_discovery_state()
+    
+    def _setup_safe_discovery_ui(self):
+        """Setup discovery UI with crash protection"""
         try:
             # Start enhanced loading animation
             self.progress_bar.setVisible(True)
@@ -178,6 +227,89 @@ class DiscoveryPanel(QFrame):
             self._populate_device_table()
             
             # Setup animated loading dots for button text with crash protection
+            if hasattr(self, 'loading_timer'):
+                self.loading_timer.stop()
+            
+            self.loading_timer = QTimer()
+            self.loading_timer.timeout.connect(self._update_discovery_loading_animation)
+            self.loading_timer.start(500)  # Update every 500ms
+            
+            # Safety timeout to prevent hanging (15 seconds max)
+            if hasattr(self, 'discovery_timeout_timer'):
+                self.discovery_timeout_timer.stop()
+                
+            self.discovery_timeout_timer = QTimer()
+            self.discovery_timeout_timer.timeout.connect(self._handle_discovery_timeout)
+            self.discovery_timeout_timer.start(15000)  # 15 second timeout
+            
+            print("🎬 Discovery UI setup complete with safety timers")
+            
+        except Exception as e:
+            print(f"⚠️ Error setting up discovery UI: {e}")
+            # Continue anyway, don't crash
+    
+    async def _run_safe_discovery(self):
+        """ACTUALLY run discovery with comprehensive crash protection"""
+        try:
+            # Try pyatv first with crash protection
+            try:
+                import pyatv
+                
+                # Real device discovery with terminal output and crash protection
+                print("📡 Scanning for Apple TV devices with timeout protection...")
+                
+                # Use asyncio.wait_for for additional timeout protection
+                import asyncio
+                devices = await asyncio.wait_for(pyatv.scan(timeout=8), timeout=12)
+                
+                self.discovered_devices = []
+                for device in devices:
+                    try:
+                        device_info = {
+                            "name": device.name,
+                            "model": str(device.device_info.model) if device.device_info else "Unknown",
+                            "address": str(device.address),
+                            "device": device  # Store the actual pyatv device object
+                        }
+                        self.discovered_devices.append(device_info)
+                        
+                        # Real-time terminal output of discovered devices
+                        print(f"📺 Found device: {device.name} ({device_info['model']}) at {device_info['address']}")
+                    except Exception as device_error:
+                        print(f"⚠️ Error processing device: {device_error}")
+                        continue
+                
+                self._populate_device_table()
+                device_count = len(self.discovered_devices)
+                
+                if device_count > 0:
+                    self.status_label.setText(f"✅ Found {device_count} device(s)")
+                else:
+                    self.status_label.setText("No Apple TV devices found")
+                
+                # Terminal output summary
+                print(f"✅ Safe discovery completed: {device_count} device(s) found")
+                
+            except ImportError:
+                # Fallback to atvremote command with crash protection
+                await self._safe_atvremote_discovery()
+            except asyncio.TimeoutError:
+                error_msg = "❌ Discovery timed out for safety"
+                self.status_label.setText(error_msg)
+                print(f"❌ {error_msg}")
+            except Exception as pyatv_error:
+                error_msg = f"❌ pyatv discovery error: {str(pyatv_error)}"
+                self.status_label.setText(error_msg)
+                print(f"❌ {error_msg}")
+                # Try fallback
+                await self._safe_atvremote_discovery()
+                
+        except Exception as e:
+            error_msg = f"❌ Critical discovery error: {str(e)}"
+            self.status_label.setText(error_msg)
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
             if hasattr(self, 'loading_timer'):
                 self.loading_timer.stop()
             self.loading_timer = QTimer()
@@ -255,12 +387,12 @@ class DiscoveryPanel(QFrame):
             self._cleanup_discovery_state()
     
     async def _safe_atvremote_discovery(self):
-        """Safe atvremote fallback discovery with crash protection"""
+        """Safe atvremote fallback discovery with PROPER parsing"""
         try:
             import subprocess
             import asyncio
             
-            print("📡 Fallback: Using SAFE atvremote scan...")
+            print("📡 Fallback: Using SAFE atvremote scan with correct parsing...")
             
             # Run subprocess in executor to prevent blocking
             loop = asyncio.get_event_loop()
@@ -270,7 +402,8 @@ class DiscoveryPanel(QFrame):
                     ['atvremote', 'scan'], 
                     capture_output=True, 
                     text=True, 
-                    timeout=10
+                    timeout=10,
+                    cwd=os.path.dirname(os.path.abspath(__file__))  # Consistent working dir
                 )
             )
             
@@ -278,38 +411,27 @@ class DiscoveryPanel(QFrame):
             if result.stderr:
                 print(f"Scan errors: {result.stderr}")
             
-            # Parse atvremote output (basic parsing)
-            self.discovered_devices = []
-            if result.returncode == 0 and result.stdout:
-                lines = result.stdout.strip().split('\n')
-                for line in lines:
-                    if line.strip():
-                        # Basic parsing of atvremote output
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            device_info = {
-                                "name": parts[0],
-                                "model": "Apple TV",
-                                "address": parts[1] if len(parts) > 1 else "Unknown",
-                                "device": None
-                            }
-                            self.discovered_devices.append(device_info)
-                            print(f"📺 Found device: {device_info['name']} at {device_info['address']}")
+            # PROPER atvremote output parsing
+            self.discovered_devices = self._parse_atvremote_scan_output(result.stdout)
             
             self._populate_device_table()
             device_count = len(self.discovered_devices)
             
             if device_count > 0:
                 self.status_label.setText(f"✅ Found {device_count} device(s) via atvremote")
+                print(f"✅ Found {device_count} Apple TV devices:")
+                for device in self.discovered_devices:
+                    print(f"  - {device.get('name', 'Unknown')} ({device.get('address', 'No address')})")
             else:
                 self.status_label.setText("No Apple TV devices found via atvremote")
+                print("ℹ️ No Apple TV devices found")
             
             print(f"✅ Safe atvremote discovery completed: {device_count} device(s) found")
             
         except subprocess.TimeoutExpired:
             error_msg = "❌ atvremote scan timed out safely"
             self.status_label.setText(error_msg)
-            print(f"❌ {error_msg}")
+            print(f"⏱️ {error_msg}")
         except FileNotFoundError:
             error_msg = "❌ Error: neither pyatv nor atvremote available"
             self.status_label.setText(error_msg)
@@ -318,6 +440,53 @@ class DiscoveryPanel(QFrame):
             error_msg = f"❌ Safe atvremote error: {str(e)}"
             self.status_label.setText(error_msg)
             print(f"❌ {error_msg}")
+    
+    def _parse_atvremote_scan_output(self, output):
+        """PROPERLY parse atvremote scan output"""
+        devices = []
+        
+        if not output or not output.strip():
+            return devices
+        
+        # atvremote scan output format:
+        # Name: Apple TV
+        # Model: Apple TV 4K
+        # Address: 192.168.1.100
+        # Identifier: XXXX-XXXX-XXXX
+        # ----
+        
+        current_device = {}
+        for line in output.strip().split('\n'):
+            line = line.strip()
+            
+            if line == '----' or line == '':
+                if current_device:
+                    # Convert to expected format
+                    device_info = {
+                        "name": current_device.get('Name', 'Unknown Apple TV'),
+                        "model": current_device.get('Model', 'Apple TV'),
+                        "address": current_device.get('Address', 'Unknown'),
+                        "identifier": current_device.get('Identifier', 'Unknown'),
+                        "device": None
+                    }
+                    devices.append(device_info)
+                    current_device = {}
+            elif ':' in line:
+                key, value = line.split(':', 1)
+                current_device[key.strip()] = value.strip()
+        
+        # Add last device if exists
+        if current_device:
+            device_info = {
+                "name": current_device.get('Name', 'Unknown Apple TV'),
+                "model": current_device.get('Model', 'Apple TV'),
+                "address": current_device.get('Address', 'Unknown'),
+                "identifier": current_device.get('Identifier', 'Unknown'),
+                "device": None
+            }
+            devices.append(device_info)
+        
+        return devices
     
     def _handle_discovery_timeout(self):
         """Handle discovery timeout safely"""
@@ -1038,12 +1207,63 @@ class ResponsiveMainWindow(QMainWindow):
         self._last_splitter_sizes = [400, 400, 400]
         self._default_splitter_sizes = [400, 400, 400]
         
-        self._setup_ui()
-        self._apply_dark_oled_theme()
-        self._setup_responsive_behavior()
+        try:
+            self._setup_ui()
+            self._apply_consistent_styling()
+            self._apply_dark_oled_theme()
+            self._setup_responsive_behavior()
+            self._setup_error_handling()
+            
+            # Critical: Force initial layout check AFTER panels are created
+            QTimer.singleShot(100, self._force_initial_layout)
+        except Exception as e:
+            print(f"❌ Main window initialization error: {e}")
+            # Try to continue with minimal setup
+            self._setup_minimal_ui()
+    
+    def _setup_error_handling(self):
+        """Setup comprehensive error handling"""
+        # Handle resize events safely
+        self.resizeEvent = self._safe_resize_event
+    
+    def _safe_resize_event(self, event):
+        """Safe resize event handler"""
+        try:
+            super().resizeEvent(event)
+        except Exception as e:
+            print(f"⚠️ Resize error handled safely: {e}")
+    
+    def _apply_consistent_styling(self):
+        """Apply consistent styling regardless of launch method"""
+        # Force black borders and consistent appearance always
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #000000;
+                border: 2px solid #000000;
+                color: #ffffff;
+            }
+            QWidget {
+                background-color: #000000;
+                color: #ffffff;
+            }
+        """)
         
-        # Critical: Force initial layout check AFTER panels are created
-        QTimer.singleShot(100, self._force_initial_layout)
+        # Force style update
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+    
+    def _setup_minimal_ui(self):
+        """Setup minimal UI in case of errors"""
+        try:
+            self.setWindowTitle("ApplerGUI - Apple TV Remote Control")
+            self.setMinimumSize(700, 500)
+            central_widget = QWidget()
+            self.setCentralWidget(central_widget)
+            layout = QVBoxLayout(central_widget)
+            layout.addWidget(QLabel("ApplerGUI - Error Recovery Mode"))
+        except Exception as e:
+            print(f"❌ Even minimal UI setup failed: {e}")
     
     def _setup_ui(self):
         """Setup main window UI with backend integration"""
