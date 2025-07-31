@@ -961,3 +961,9 @@ class ResponsiveMainWindow(QMainWindow):
         # Force repaint
         self.update()
         self.repaint()
+
+# Backward compatibility alias
+MainWindow = ResponsiveMainWindow
+
+# Ensure proper exports
+__all__ = ['ResponsiveMainWindow', 'MainWindow', 'DiscoveryPanel', 'RemotePanel', 'NowPlayingPanel']
