@@ -58,7 +58,11 @@ class ApplerGUIApp:
         # Set application icon if available
         icon_path = project_root / "resources" / "icons" / "app_icon.png"
         if icon_path.exists():
-            self.app.setWindowIcon(QIcon(str(icon_path)))
+            app_icon = QIcon(str(icon_path))
+            self.app.setWindowIcon(app_icon)
+            print(f"✅ Application icon set from: {icon_path}")
+        else:
+            print(f"⚠️ Application icon not found at: {icon_path}")
     
     def setup_backend(self):
         """Set up backend components."""
