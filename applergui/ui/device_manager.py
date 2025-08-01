@@ -9,9 +9,9 @@ import asyncio
 import qasync
 import logging
 
-from backend.config_manager import ConfigManager
-from backend.device_controller import DeviceController
-from backend.pairing_manager import PairingManager
+from ..backend.config_manager import ConfigManager
+from ..backend.device_controller import DeviceController
+from ..backend.pairing_manager import PairingManager
 
 class DeviceListItem(QWidget):
     """Custom widget for device list items."""
@@ -264,7 +264,7 @@ class DeviceManagerWidget(QWidget):
     def _discover_devices(self):
         """Launch Apple TV discovery and pairing wizard"""
         try:
-            from ui.discovery_wizard import DiscoveryWizard
+            from .discovery_wizard import DiscoveryWizard
             
             # Create and show discovery wizard
             wizard = DiscoveryWizard(self.config_manager, parent=self)

@@ -19,7 +19,7 @@ except ImportError:
     PIL_AVAILABLE = False
     print("Warning: PIL/Pillow not available, album artwork will be disabled")
 
-from backend.device_controller import DeviceController
+from ..backend.device_controller import DeviceController
 
 class ArtworkLabel(QLabel):
     """Custom label for displaying album artwork."""

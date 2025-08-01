@@ -1,213 +1,26 @@
 #!/usr/bin/env python3
 """
-Apple TV Remote GUI Launcher
-Ensures consistent behavior across all launch methods
+ApplerGUI - Apple TV Remote GUI Launcher
 """
 
 import sys
 import os
-import traceback
-
-def setup_environment():
-    """Setup consistent environment for all launch methods"""
-    # Ensure consistent working directory
-    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    os.chdir(script_dir)
-    
-    # Set consistent environment variables
-    os.environ['PYTHONPATH'] = script_dir
-    if 'DISPLAY' not in os.environ:
-        os.environ['DISPLAY'] = ':0'
-    
-    # Force Qt platform for consistency
-    os.environ['QT_QPA_PLATFORM'] = 'xcb'
-    
-    # COMPLETELY SUPPRESS Qt logging - must be done BEFORE any Qt imports
-    os.environ['QT_LOGGING_RULES'] = '*=false'
-    os.environ['QT_DEBUG_PLUGINS'] = '0'
-    os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
-    os.environ['QT_QUIET'] = '1'
-    os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
-    
-    # Add current directory to Python path
-    sys.path.insert(0, script_dir)
-    
-    return script_dir
-
-# Setup environment first
-applergui_dir = setup_environment()
-
-def check_dependencies():
-    """Check if all dependencies are available"""
-    missing_deps = []
-    
-    try:
-        import PyQt6
-    except ImportError:
-        missing_deps.append("PyQt6>=6.4.0")
-    
-    try:
-        import qasync
-    except ImportError:
-        missing_deps.append("qasync>=0.24.1")
-    
-    try:
-        import pyatv
-    except ImportError:
-        missing_deps.append("pyatv>=0.14.0")
-    
-    try:
-        import aiohttp
-    except ImportError:
-        missing_deps.append("aiohttp>=3.8.0")
-    
-    # PIL is optional but recommended
-    try:
-        import PIL
-    except ImportError:
-        print("⚠️  Warning: PIL/Pillow not available, image processing will be disabled")
-    
-    # keyring is optional but recommended
-    try:
-        import keyring
-    except ImportError:
-        print("⚠️  Warning: keyring not available, using file-based credential storage")
-    
-    if missing_deps:
-        print("❌ Missing required dependencies:")
-        for dep in missing_deps:
-            print(f"   - {dep}")
-        print("\n💡 Install missing packages with:")
-        print(f"   pip3 install --user {' '.join(missing_deps)}")
-        print("\n🔧 Or run the full installation:")
-        print("   ./install.sh")
-        return False
-    
-    return True
-    try:
-        import keyring
-    except ImportError:
-        print("⚠️  Warning: keyring not available, using file-based credential storage")
-    
-    if missing_deps:
-        print("❌ Missing required dependencies:")
-        for dep in missing_deps:
-            print(f"   - {dep}")
-        print("\n💡 Install missing packages with:")
-        print(f"   pip3 install --user {' '.join(missing_deps)}")
-        print("\n🔧 Or run the full installation:")
-        print("   ./install.sh")
-        return False
-    
-    return True
 
 def main():
-    """Main launcher function with unified environment setup"""
-    
-    # Handle debug mode
-    debug_mode = "--debug" in sys.argv
-    
-    if debug_mode:
-        print("🐛 Launching ApplerGUI in debug mode...")
-        print("📊 Checking dependencies...")
-    
-    # Check dependencies first
-    if not check_dependencies():
-        sys.exit(1)
+    """Main launcher function"""
+    # Ensure we can import applergui
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, script_dir)
     
     try:
-        import qasync
-        import asyncio
-        from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import QLoggingCategory
-        
-        # SUPPRESS ALL Qt logging categories
-        QLoggingCategory.setFilterRules("*=false")
-        
-        from ui.main_window import ResponsiveMainWindow as MainWindow
-        from backend.config_manager import ConfigManager
-        from backend.device_controller import DeviceController
-        from backend.pairing_manager import PairingManager
-        
-        if debug_mode:
-            print("✓ All imports successful")
-        
-        print("🍎 Starting Apple TV Remote GUI...")
-        
-        # Create and set up Qt application
-        app = QApplication(sys.argv)
-        app.setApplicationName("Apple TV Remote GUI")
-        
-        # Force consistent styling regardless of launch method
-        app.setStyleSheet("""
-            QMainWindow {
-                background-color: #000000;
-                border: 2px solid #000000;
-                color: #ffffff;
-            }
-            QWidget {
-                background-color: #000000;
-                color: #ffffff;
-            }
-        """)
-        
-        # Setup async event loop integration
-        loop = qasync.QEventLoop(app)
-        asyncio.set_event_loop(loop)
-        
-        if debug_mode:
-            print("✓ Async event loop initialized")
-        
-        # Setup backend components
-        config_manager = ConfigManager()
-        device_controller = DeviceController(config_manager)
-        pairing_manager = PairingManager(config_manager)
-        
-        if debug_mode:
-            print("✓ Backend components initialized")
-        
-        # Create main window with error handling
-        try:
-            window = MainWindow(config_manager, device_controller, pairing_manager)
-            
-            # Apply consistent styling
-            window.setStyleSheet("""
-                QMainWindow {
-                    background-color: #000000;
-                    border: 2px solid #000000;
-                    color: #ffffff;
-                }
-                QWidget {
-                    background-color: #000000;
-                    color: #ffffff;
-                }
-            """)
-            
-            window.show()
-            
-            print("✅ ApplerGUI launched successfully with unified environment")
-            
-            # Run with async support
-            with loop:
-                loop.run_until_complete(app.exec())
-                
-        except Exception as window_error:
-            print(f"❌ Window creation error: {window_error}")
-            if debug_mode:
-                traceback.print_exc()
-            sys.exit(1)
-        
+        from applergui.main import main as applergui_main
+        applergui_main()
     except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print("💡 Please install missing packages with: pip install -r requirements.txt")
-        if debug_mode:
-            traceback.print_exc()
+        print(f"❌ Failed to import applergui: {e}")
+        print("💡 Please install ApplerGUI with: pip install .")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Launch failed: {e}")
-        if debug_mode:
-            print("\n📊 Full traceback:")
-            traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":

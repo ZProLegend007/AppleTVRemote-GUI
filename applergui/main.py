@@ -28,10 +28,10 @@ QLoggingCategory.setFilterRules("*=false")
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from ui.main_window import ResponsiveMainWindow
-from backend.config_manager import ConfigManager
-from backend.device_controller import DeviceController
-from backend.pairing_manager import PairingManager
+from .ui.main_window import ResponsiveMainWindow
+from .backend.config_manager import ConfigManager
+from .backend.device_controller import DeviceController
+from .backend.pairing_manager import PairingManager
 
 class ApplerGUIApp:
     """Main application class."""

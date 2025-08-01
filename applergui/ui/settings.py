@@ -10,7 +10,7 @@ from PyQt6.QtGui import QFont
 import json
 from pathlib import Path
 
-from backend.config_manager import ConfigManager
+from ..backend.config_manager import ConfigManager
 
 class GeneralSettingsWidget(QWidget):
     """Widget for general application settings."""

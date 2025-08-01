@@ -5,7 +5,7 @@ from typing import Optional, Callable, Dict, Any
 from PyQt6.QtCore import QObject, pyqtSignal
 import pyatv
 from pyatv.interface import PairingHandler
-from backend.config_manager import ConfigManager
+from .config_manager import ConfigManager
 
 class PairingManager(QObject):
     """Manages device pairing operations."""
