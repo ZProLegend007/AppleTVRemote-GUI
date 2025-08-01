@@ -79,9 +79,17 @@ class ApplerGUIApp:
         )
         
         # Apply saved window geometry if available
-        geometry = self.config_manager.get('window_geometry')
-        if geometry:
-            self.main_window.restoreGeometry(geometry)
+        geometry_hex = self.config_manager.get('window_geometry')
+        if geometry_hex:
+            try:
+                # Convert hex string back to QByteArray
+                from PyQt6.QtCore import QByteArray
+                geometry = QByteArray.fromHex(geometry_hex.encode())
+                self.main_window.restoreGeometry(geometry)
+            except Exception as e:
+                print(f"⚠️ Failed to restore window geometry: {e}")
+                # Clear invalid geometry data
+                self.config_manager.set('window_geometry', None)
         
         # Show the main window
         self.main_window.show()
@@ -129,8 +137,8 @@ class ApplerGUIApp:
                 if last_device in known_devices:
                     await self.device_controller.connect_device(last_device)
             
-            # Run the Qt event loop
-            await qasync.QEventLoop(self.app).run_forever()
+            # Initialization is complete, the Qt event loop will handle the rest
+            # The main() function has already set up the event loop context
         
         except KeyboardInterrupt:
             print("Application interrupted by user")
