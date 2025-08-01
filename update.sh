@@ -240,10 +240,7 @@ main() {
     
     show_section "🔄 UPDATING APPLICATION"
     
-    # Backup current installation (remove previous backups first)
-    print_info "🗑️ Removing previous backups..."
-    rm -rf "$APP_DIR".backup.* 2>/dev/null || true
-    
+    # Backup current installation
     print_info "💾 Creating backup..."
     BACKUP_DIR="$APP_DIR.backup.$(date +%Y%m%d_%H%M%S)"
     
