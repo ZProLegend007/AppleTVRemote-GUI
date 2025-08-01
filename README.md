@@ -4,20 +4,29 @@
 
 ## 🚀 Installation
 
+### Quick Install
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
+# Clone the repository
+git clone https://github.com/ZProLegend007/ApplerGUI.git
+cd ApplerGUI
+
+# Install dependencies and the application
+pip3 install --user -r requirements.txt
+pip3 install --user .
 ```
 
-**That's it!** The installer handles everything automatically with a beautiful interactive setup.
-
-### 🔒 Security Conscious?
-
+### Alternative Installation
 ```bash
-# Download and inspect the installer first
-curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh -o install.sh
-less install.sh  # Review the script
-chmod +x install.sh
+# Run the simple install script
 ./install.sh
+```
+
+### 🏃 Run
+```bash
+applergui
+```
+
+**That's it!** ApplerGUI is now installed and ready to use.
 ```
 
 ## ✨ Features

@@ -9,7 +9,8 @@ import os
 def main():
     """Main launcher function"""
     # Ensure we can import applergui
-    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    import os
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in globals() else os.getcwd()
     sys.path.insert(0, script_dir)
     
     try:
