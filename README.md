@@ -4,7 +4,17 @@
 
 ## 🚀 Installation
 
-### Quick Install
+### ⚡ One-Line Installer (Recommended)
+```bash
+curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
+```
+This installer will:
+- ✅ Check system dependencies
+- ✅ Install ApplerGUI and all requirements
+- ✅ Create desktop entry (Linux)
+- ✅ Configure PATH if needed
+
+### Manual Installation
 ```bash
 # Clone the repository
 git clone https://github.com/ZProLegend007/ApplerGUI.git
@@ -15,18 +25,36 @@ pip3 install --user -r requirements.txt
 pip3 install --user .
 ```
 
-### Alternative Installation
+### Local Development
 ```bash
-# Run the simple install script
-./install.sh
+git clone https://github.com/ZProLegend007/ApplerGUI.git
+cd ApplerGUI
+./install.sh  # Automatically detects local repository
 ```
+
+## 🔄 Updates
+
+### ⚡ One-Line Updater
+```bash
+curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh | bash
+```
+The updater will:
+- ✅ Backup your configuration
+- ✅ Update to the latest version
+- ✅ Preserve your settings
+- ✅ Restart the application
 
 ### 🏃 Run
 ```bash
 applergui
 ```
-
-**That's it!** ApplerGUI is now installed and ready to use.
+Or if not in PATH:
+```bash
+~/.local/bin/applergui
+```
+Or as a Python module:
+```bash
+python3 -m applergui
 ```
 
 ## ✨ Features
