@@ -1,0 +1,1 @@
+PUT THE ONE LINE INSTALLER BACK. FIX THESE ERRORS - there are GTK theme parsing errors and a restoreGeometry error with unexpected type 'str'. Also bring back the updater with the same style as the old installer.
