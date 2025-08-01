@@ -15,19 +15,10 @@ def test_unified_imports():
     print("🧪 Testing unified imports...")
     
     try:
-        # Test new unified structure
-        from shared_launcher import AppleTVRemoteGUI, DiscoveryWorker, setup_environment, unified_main
-        print("✓ shared_launcher imports successful")
+        from applergui_main import AppleTVRemoteGUI, DiscoveryWorker
+        print("✓ applergui_main imports successful")
         
-        # Test that applergui_main still works for backward compatibility
-        try:
-            from applergui_main import AppleTVRemoteGUI as OldGUI
-            print("✓ applergui_main backward compatibility maintained")
-        except ImportError:
-            print("ℹ️ applergui_main no longer available (expected with unified system)")
-        
-        # Test main module imports
-        import main
+        from main import setup_environment, main
         print("✓ main module imports successful")
         
         # Test that bin/applergui imports work
@@ -38,13 +29,13 @@ def test_unified_imports():
         if os.path.exists(bin_applergui_path):
             print("✓ bin/applergui file exists")
             
-            # Read the file content to verify it imports from shared_launcher
+            # Read the file content to verify it imports from main
             with open(bin_applergui_path, 'r') as f:
                 content = f.read()
-                if 'from shared_launcher import unified_main' in content:
-                    print("✓ bin/applergui imports unified_main function correctly")
+                if 'from main import main' in content:
+                    print("✓ bin/applergui imports main function correctly")
                 else:
-                    print("❌ bin/applergui does not import unified_main function")
+                    print("❌ bin/applergui does not import main function")
                     return False
         
         return True
@@ -119,7 +110,7 @@ def test_environment_consistency():
     print("🧪 Testing environment consistency...")
     
     try:
-        from shared_launcher import setup_environment
+        from main import setup_environment
         
         # Save original environment
         original_cwd = os.getcwd()

@@ -1,22 +1,48 @@
 #!/usr/bin/env python3
 """
-Apple TV Remote GUI - Desktop Entry Point
-Uses shared launcher for consistency
+Apple TV Remote GUI - Main Entry Point
+Forces consistent launch behavior for both desktop and terminal
 """
 
 import sys
+import os
 
-# Import shared launcher and run
-try:
-    from shared_launcher import unified_main
+def setup_environment():
+    """Setup consistent environment"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(script_dir)
+    os.environ['PYTHONPATH'] = script_dir
+    if 'DISPLAY' not in os.environ:
+        os.environ['DISPLAY'] = ':0'
+    os.environ['QT_QPA_PLATFORM'] = 'xcb'
+
+def main():
+    """Main application entry point"""
+    print("🍎 Apple TV Remote GUI Starting...")
     
-    if __name__ == "__main__":
-        unified_main()
+    # Setup environment consistently
+    setup_environment()
+    
+    try:
+        from PyQt5.QtWidgets import QApplication
+        from applergui_main import AppleTVRemoteGUI
         
-except ImportError as e:
-    print(f"❌ Import error: {e}")
-    print("Ensure shared_launcher.py exists in the same directory")
-    sys.exit(1)
-except Exception as e:
-    print(f"❌ Launch error: {e}")
-    sys.exit(1)
+        app = QApplication(sys.argv)
+        app.setApplicationName("Apple TV Remote GUI")
+        
+        # Create main window
+        window = AppleTVRemoteGUI()
+        window.show()
+        
+        # Apply styling after show
+        window._apply_consistent_styling()
+        
+        # Run application
+        sys.exit(app.exec_())
+        
+    except Exception as e:
+        print(f"❌ Application error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

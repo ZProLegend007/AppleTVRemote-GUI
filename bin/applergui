@@ -1,27 +1,18 @@
 #!/usr/bin/env python3
 """
-Apple TV Remote GUI - Terminal Entry Point
-Uses shared launcher for consistency
+Apple TV Remote GUI Launcher
+Calls same main function as main.py for consistency
 """
 
 import sys
 import os
 
-# Setup path to find shared_launcher.py
+# Setup path to find main.py
 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, script_dir)
 
-# Import shared launcher and run
-try:
-    from shared_launcher import unified_main
-    
-    if __name__ == "__main__":
-        unified_main()
-        
-except ImportError as e:
-    print(f"❌ Import error: {e}")
-    print("Ensure shared_launcher.py exists in the same directory")
-    sys.exit(1)
-except Exception as e:
-    print(f"❌ Launch error: {e}")
-    sys.exit(1)
+# Import and call EXACT same main function
+from main import main
+
+if __name__ == "__main__":
+    main()
