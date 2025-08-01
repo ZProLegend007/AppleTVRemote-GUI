@@ -36,11 +36,11 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "applergui=main:main",
+            "applergui=applergui.main:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "": ["resources/*", "resources/*/*"],
+        "applergui": ["resources/*", "resources/*/*"],
     },
 )

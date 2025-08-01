@@ -7,7 +7,7 @@ from PyQt6.QtGui import QFont, QKeySequence, QShortcut
 import asyncio
 import qasync
 
-from backend.device_controller import DeviceController
+from ..backend.device_controller import DeviceController
 
 class CircularButton(QPushButton):
     """Circular button for remote control."""

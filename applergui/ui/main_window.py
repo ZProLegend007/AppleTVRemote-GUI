@@ -13,15 +13,15 @@ from PyQt6.QtGui import QFont, QAction, QKeySequence, QPixmap
 import asyncio
 import qasync
 
-from ui.device_manager import DeviceManagerWidget
-from ui.remote_control import RemoteControlWidget
-from ui.now_playing import NowPlayingWidget
-from ui.pairing_dialog import PairingDialogManager
-from ui.settings import SettingsDialog
-from ui.pin_dialog import PinDialog
-from backend.config_manager import ConfigManager
-from backend.device_controller import DeviceController
-from backend.pairing_manager import PairingManager
+from .device_manager import DeviceManagerWidget
+from .remote_control import RemoteControlWidget
+from .now_playing import NowPlayingWidget
+from .pairing_dialog import PairingDialogManager
+from .settings import SettingsDialog
+from .pin_dialog import PinDialog
+from ..backend.config_manager import ConfigManager
+from ..backend.device_controller import DeviceController
+from ..backend.pairing_manager import PairingManager
 
 class DiscoveryPanel(QFrame):
     """Device discovery panel with real pyatv backend integration"""

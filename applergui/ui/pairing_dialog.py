@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, pyqtSlot, QTimer, QObject
 from PyQt6.QtGui import QFont, QPixmap
 from typing import Optional
 
-from backend.pairing_manager import PairingManager
+from ..backend.pairing_manager import PairingManager
 
 class PinEntryDialog(QDialog):
     """Dialog for entering pairing PIN."""

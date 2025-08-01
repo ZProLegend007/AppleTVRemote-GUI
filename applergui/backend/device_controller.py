@@ -7,7 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 import qasync
 import pyatv
 from pyatv.interface import AppleTV, Playing
-from backend.config_manager import ConfigManager
+from .config_manager import ConfigManager
 
 class DeviceController(QObject):
     """Controls Apple TV/HomePod device connections and operations."""
