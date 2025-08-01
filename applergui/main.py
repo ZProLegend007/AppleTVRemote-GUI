@@ -80,12 +80,16 @@ class ApplerGUIApp:
         
         # Apply saved window geometry if available
         geometry_hex = self.config_manager.get('window_geometry')
-        if geometry_hex:
+        if geometry_hex and isinstance(geometry_hex, str) and len(geometry_hex) > 0:
             try:
                 # Convert hex string back to QByteArray
                 from PyQt6.QtCore import QByteArray
                 geometry = QByteArray.fromHex(geometry_hex.encode())
-                self.main_window.restoreGeometry(geometry)
+                if not geometry.isEmpty():
+                    self.main_window.restoreGeometry(geometry)
+                else:
+                    print("⚠️ Invalid geometry data (empty), skipping restore")
+                    self.config_manager.set('window_geometry', None)
             except Exception as e:
                 print(f"⚠️ Failed to restore window geometry: {e}")
                 # Clear invalid geometry data
