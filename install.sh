@@ -2,7 +2,7 @@
 # ApplerGUI Professional Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
 
-# set -e  # Exit on any error
+set -e  # Exit on any error
 
 # Clear screen for clean start
 clear
@@ -130,15 +130,36 @@ fi
 
 print_success "pip3 is available"
 
-# User preferences
+# User preferences (minimal questions only)
 echo ""
-print_status "Would you like to install system dependencies automatically? (Recommended)"
-read -p "Install dependencies? (Y/n): " -n 1 -r
+print_status "Essential configuration questions:"
+echo ""
+
+# Desktop entry
+read -p "Create desktop entry? (Y/n): " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    INSTALL_DEPS=true
+    CREATE_DESKTOP=true
 else
-    INSTALL_DEPS=false
+    CREATE_DESKTOP=false
+fi
+
+# CLI shortcut
+read -p "Create CLI command shortcut? (Y/n): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    CREATE_CLI=true
+else
+    CREATE_CLI=false
+fi
+
+# Development tools
+read -p "Install development tools? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    INSTALL_DEV=true
+else
+    INSTALL_DEV=false
 fi
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -147,6 +168,10 @@ fi
 
 clear
 print_section "SYSTEM DEPENDENCY INSTALLATION"
+
+# Automatically install system dependencies
+print_progress "Installing system dependencies automatically..."
+INSTALL_DEPS=true
 
 # Install system dependencies if on Linux
 if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
@@ -238,42 +263,41 @@ fi
 sleep 1
 
 # ═══════════════════════════════════════════════════════════════════════
-# INSTALLATION METHOD SELECTION
+# INSTALLATION SETUP
 # ═══════════════════════════════════════════════════════════════════════
 
 clear
-print_section "INSTALLATION METHOD"
+print_section "INSTALLATION SETUP"
+
+# Standard installation paths
+INSTALL_DIR="$HOME/.local/share/applergui"
+BIN_DIR="$HOME/.local/bin"
+CLI_SCRIPT="$BIN_DIR/applergui"
+
+print_status "Installation configuration:"
+echo "  📁 Install directory: ${BOLD}$INSTALL_DIR${NC}"
+echo "  🔗 CLI command: ${BOLD}$CLI_SCRIPT${NC}"
+echo "  📂 Binary directory: ${BOLD}$BIN_DIR${NC}"
+echo ""
+
+# Create directories
+print_progress "Creating installation directories..."
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$BIN_DIR"
+print_success "Directories created successfully"
 
 # Choose installation method
 if [ -d ".git" ] && [ -f "setup.py" ]; then
     # Local development installation
     print_status "Local repository detected - Development installation mode"
-    print_progress "Installing from local source code..."
     INSTALL_METHOD="local"
-    INSTALL_CMD="pip3 install --user -e ."
 else
     # Remote installation via GitHub
     print_status "Remote installation mode - Installing latest version from GitHub"
-    print_progress "Preparing to download and install from GitHub repository..."
     INSTALL_METHOD="remote"
-    INSTALL_CMD="pip3 install --user git+https://github.com/ZProLegend007/ApplerGUI.git"
 fi
 
 print_success "Installation method: ${BOLD}$INSTALL_METHOD${NC}"
-
-# Virtual environment option
-echo ""
-print_status "Would you like to create a virtual environment? (Recommended for isolation)"
-read -p "Create virtual environment? (Y/n): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    USE_VENV=true
-    VENV_PATH="$HOME/.local/share/applergui-venv"
-    print_progress "Virtual environment will be created at: $VENV_PATH"
-else
-    USE_VENV=false
-    print_warning "Installing to user directory without virtual environment"
-fi
 
 sleep 1
 
@@ -284,43 +308,29 @@ sleep 1
 clear
 print_section "PYTHON ENVIRONMENT SETUP"
 
-if [[ "$USE_VENV" == true ]]; then
-    print_progress "Creating virtual environment..."
+# Create virtual environment in the install directory
+VENV_PATH="$INSTALL_DIR/venv"
+print_progress "Creating virtual environment at $VENV_PATH..."
+
+if [ -d "$VENV_PATH" ]; then
+    print_warning "Virtual environment already exists, removing old one..."
+    rm -rf "$VENV_PATH"
+fi
+
+if python3 -m venv "$VENV_PATH"; then
+    print_success "Virtual environment created successfully"
     
-    if [ -d "$VENV_PATH" ]; then
-        print_warning "Virtual environment already exists, removing old one..."
-        rm -rf "$VENV_PATH"
-    fi
-    
-    mkdir -p "$(dirname "$VENV_PATH")"
-    
-    if python3 -m venv "$VENV_PATH"; then
-        print_success "Virtual environment created successfully"
-        
-        # Activate virtual environment
-        source "$VENV_PATH/bin/activate"
-        print_success "Virtual environment activated"
-        
-        # Update installation command for venv
-        if [[ "$INSTALL_METHOD" == "local" ]]; then
-            INSTALL_CMD="pip install -e ."
-        else
-            INSTALL_CMD="pip install git+https://github.com/ZProLegend007/ApplerGUI.git"
-        fi
-    else
-        print_error "Failed to create virtual environment"
-        print_warning "Falling back to user installation"
-        USE_VENV=false
-    fi
+    # Activate virtual environment
+    source "$VENV_PATH/bin/activate"
+    print_success "Virtual environment activated"
+else
+    print_error "Failed to create virtual environment"
+    exit 1
 fi
 
 # Upgrade pip first
 print_progress "Ensuring pip is up to date..."
-if [[ "$USE_VENV" == true ]]; then
-    python -m pip install --upgrade pip &
-else
-    python3 -m pip install --user --upgrade pip &
-fi
+python -m pip install --upgrade pip &
 spin
 print_success "pip updated successfully"
 
@@ -338,6 +348,15 @@ echo ""
 print_status "This may take a few minutes depending on your internet connection..."
 echo ""
 
+# Install ApplerGUI
+if [[ "$INSTALL_METHOD" == "local" ]]; then
+    print_status "Installing from local source..."
+    INSTALL_CMD="pip install -e ."
+else
+    print_status "Installing from GitHub repository..."
+    INSTALL_CMD="pip install git+https://github.com/ZProLegend007/ApplerGUI.git"
+fi
+
 if eval $INSTALL_CMD; then
     print_success "ApplerGUI installed successfully!"
 else
@@ -345,10 +364,59 @@ else
     echo ""
     print_status "Troubleshooting steps:"
     echo "  1. Check your internet connection"
-    echo "  2. Ensure you have the latest pip: ${BOLD}python3 -m pip install --user --upgrade pip${NC}"
-    echo "  3. Try installing dependencies manually: ${BOLD}pip3 install --user PyQt6${NC}"
+    echo "  2. Ensure you have the latest pip: ${BOLD}python3 -m pip install --upgrade pip${NC}"
+    echo "  3. Try installing dependencies manually: ${BOLD}pip install PyQt6${NC}"
     echo "  4. Check the GitHub repository: https://github.com/ZProLegend007/ApplerGUI"
     exit 1
+fi
+
+sleep 1
+
+# ═══════════════════════════════════════════════════════════════════════
+# CLI COMMAND CREATION
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "CLI COMMAND CREATION"
+
+if [[ "$CREATE_CLI" == true ]]; then
+    print_progress "Creating CLI command at $CLI_SCRIPT..."
+    
+    # Create the CLI wrapper script
+    cat > "$CLI_SCRIPT" << 'EOF'
+#!/bin/bash
+# ApplerGUI CLI Wrapper Script
+
+APPLERGUI_DIR="$HOME/.local/share/applergui"
+VENV_PATH="$APPLERGUI_DIR/venv"
+
+# Activate virtual environment and run ApplerGUI
+if [ -d "$VENV_PATH" ]; then
+    source "$VENV_PATH/bin/activate"
+    python -m applergui "$@"
+else
+    echo "❌ ApplerGUI installation not found at $APPLERGUI_DIR"
+    echo "💡 Please reinstall ApplerGUI or check your installation."
+    exit 1
+fi
+EOF
+    
+    # Make it executable
+    chmod +x "$CLI_SCRIPT"
+    print_success "CLI command created successfully"
+    
+    # Add ~/.local/bin to PATH if not already there
+    print_progress "Ensuring ~/.local/bin is in PATH..."
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+        print_success "Added ~/.local/bin to PATH in ~/.bashrc"
+        print_warning "Please run 'source ~/.bashrc' or restart your terminal to update PATH"
+        export PATH="$HOME/.local/bin:$PATH"
+    else
+        print_success "~/.local/bin already in PATH"
+    fi
+else
+    print_warning "CLI command creation skipped (user choice)"
 fi
 
 sleep 1
@@ -360,41 +428,24 @@ sleep 1
 clear
 print_section "INSTALLATION VERIFICATION"
 
-# Check if the command is available
-LOCAL_BIN="$HOME/.local/bin"
-VENV_BIN="$VENV_PATH/bin"
-
 print_progress "Verifying installation..."
 
-if [[ "$USE_VENV" == true ]] && [ -f "$VENV_BIN/applergui" ]; then
-    print_success "✅ Installation complete (Virtual Environment)!"
-    echo ""
-    print_status "To run ApplerGUI:"
-    echo "  ${BOLD}source $VENV_PATH/bin/activate && applergui${NC}"
-    echo ""
-    print_status "Or create an alias for convenience:"
-    echo "  ${BOLD}echo 'alias applergui=\"source $VENV_PATH/bin/activate && applergui\"' >> ~/.bashrc${NC}"
-    echo "  ${BOLD}source ~/.bashrc${NC}"
-    
-    EXECUTABLE_PATH="$VENV_BIN/applergui"
-    
-elif command -v applergui &> /dev/null; then
+# Test if applergui module can be imported
+if python -c "import applergui; print('✅ ApplerGUI module imported successfully')" 2>/dev/null; then
     print_success "✅ Installation complete!"
-    print_status "Run with: ${BOLD}applergui${NC}"
-    EXECUTABLE_PATH=$(which applergui)
     
-elif [ -f "$LOCAL_BIN/applergui" ]; then
-    print_success "✅ Installation complete!"
-    print_warning "Command not in PATH. Add ~/.local/bin to your PATH:"
-    echo "  ${BOLD}echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc${NC}"
-    echo "  ${BOLD}source ~/.bashrc${NC}"
-    print_status "Or run directly with: ${BOLD}$LOCAL_BIN/applergui${NC}"
-    EXECUTABLE_PATH="$LOCAL_BIN/applergui"
+    if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
+        print_status "CLI command available: ${BOLD}applergui${NC}"
+        print_status "Try: ${BOLD}applergui --help${NC}"
+    else
+        print_status "Run with: ${BOLD}python -m applergui${NC}"
+    fi
     
+    EXECUTABLE_PATH="$CLI_SCRIPT"
 else
-    print_warning "Installation completed but command not found."
-    print_status "Try running: ${BOLD}python3 -m applergui${NC}"
-    EXECUTABLE_PATH="python3 -m applergui"
+    print_error "Installation verification failed!"
+    print_status "ApplerGUI module could not be imported."
+    exit 1
 fi
 
 sleep 1
@@ -406,8 +457,8 @@ sleep 1
 clear
 print_section "DESKTOP INTEGRATION"
 
-# Create desktop entry if on Linux
-if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -n "$EXECUTABLE_PATH" ]]; then
+# Create desktop entry if requested
+if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$CREATE_DESKTOP" == true ]]; then
     print_progress "Setting up desktop integration..."
     
     DESKTOP_DIR="$HOME/.local/share/applications"
@@ -421,11 +472,11 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -n "$EXECUTABLE_PATH" ]]; then
     # Create desktop entry
     print_status "Creating desktop entry..."
     
-    # Determine exec command based on installation type
-    if [[ "$USE_VENV" == true ]]; then
-        EXEC_CMD="bash -c 'source $VENV_PATH/bin/activate && applergui'"
+    # Use our CLI script if created, otherwise fallback to python module
+    if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
+        EXEC_CMD="$CLI_SCRIPT"
     else
-        EXEC_CMD="$EXECUTABLE_PATH"
+        EXEC_CMD="bash -c 'cd $INSTALL_DIR && source venv/bin/activate && python -m applergui'"
     fi
     
     cat > "$DESKTOP_FILE" << EOF
@@ -461,7 +512,11 @@ EOF
     
     print_success "Desktop integration complete"
 else
-    print_warning "Desktop integration skipped (not Linux or no executable found)"
+    if [[ "$CREATE_DESKTOP" == false ]]; then
+        print_warning "Desktop integration skipped (user choice)"
+    else
+        print_warning "Desktop integration skipped (not Linux)"
+    fi
 fi
 
 sleep 1
@@ -481,14 +536,17 @@ echo ""
 echo "📋 ${BOLD}Quick Start Guide:${NC}"
 echo ""
 echo "  1. ${BOLD}Launch ApplerGUI:${NC}"
-if [[ "$USE_VENV" == true ]]; then
-    echo "     ${CYAN}source $VENV_PATH/bin/activate && applergui${NC}"
-elif command -v applergui &> /dev/null; then
+if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
     echo "     ${CYAN}applergui${NC}"
-elif [ -f "$LOCAL_BIN/applergui" ]; then
-    echo "     ${CYAN}$LOCAL_BIN/applergui${NC}"
 else
-    echo "     ${CYAN}python3 -m applergui${NC}"
+    echo "     ${CYAN}cd $INSTALL_DIR && source venv/bin/activate && python -m applergui${NC}"
+fi
+echo ""
+echo "  2. ${BOLD}CLI Commands:${NC}"
+if [[ "$CREATE_CLI" == true ]]; then
+    echo "     ${CYAN}applergui --help${NC}     Show help"
+    echo "     ${CYAN}applergui --version${NC}  Show version"
+    echo "     ${CYAN}applergui --update${NC}   Update to latest version"
 fi
 echo ""
 echo "  2. ${BOLD}Connect your devices:${NC}"
@@ -517,14 +575,10 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_status "Launching ApplerGUI..."
     
-    if [[ "$USE_VENV" == true ]]; then
-        source "$VENV_PATH/bin/activate" && applergui &
-    elif command -v applergui &> /dev/null; then
-        applergui &
-    elif [ -f "$LOCAL_BIN/applergui" ]; then
-        "$LOCAL_BIN/applergui" &
+    if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
+        "$CLI_SCRIPT" &
     else
-        python3 -m applergui &
+        cd "$INSTALL_DIR" && source venv/bin/activate && python -m applergui &
     fi
     
     print_success "ApplerGUI launched! Check your desktop for the application window."

@@ -7,6 +7,8 @@ import sys
 import os
 import asyncio
 import signal
+import argparse
+import subprocess
 from pathlib import Path
 
 # Suppress Qt verbose logging for clean debug output
@@ -16,22 +18,13 @@ os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
 os.environ['QT_QUIET'] = '1'
 os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
 
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QCoreApplication, QLoggingCategory
-from PyQt6.QtGui import QPixmap, QIcon
-import qasync
-
-# SUPPRESS ALL Qt logging categories
-QLoggingCategory.setFilterRules("*=false")
+# GUI imports - moved inside launch_gui function for conditional loading
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from .ui.main_window import ResponsiveMainWindow
-from .backend.config_manager import ConfigManager
-from .backend.device_controller import DeviceController
-from .backend.pairing_manager import PairingManager
+# Backend and UI imports - moved inside launch_gui function for conditional loading
 
 class ApplerGUIApp:
     """Main application class."""
@@ -151,20 +144,105 @@ class ApplerGUIApp:
         finally:
             await self.cleanup()
 
+def handle_update():
+    """Handle the --update command."""
+    print("🔄 Starting ApplerGUI update...")
+    try:
+        # Try to download and run the update script
+        update_url = "https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh"
+        result = subprocess.run(['curl', '-fsSL', update_url], capture_output=True, text=True)
+        if result.returncode == 0:
+            # Run the update script
+            result = subprocess.run(['bash'], input=result.stdout, text=True)
+            if result.returncode == 0:
+                print("✅ Update completed successfully!")
+            else:
+                print("❌ Update failed!")
+                sys.exit(1)
+        else:
+            print("❌ Failed to download update script!")
+            print("💡 Please check your internet connection and try again.")
+            sys.exit(1)
+    except Exception as e:
+        print(f"❌ Update failed: {e}")
+        sys.exit(1)
+
+def handle_version():
+    """Handle the --version command."""
+    from . import __version__
+    print(f"ApplerGUI version {__version__}")
+
+def handle_help():
+    """Handle the --help command."""
+    print("""ApplerGUI - Control Apple TV and HomePod devices from Linux
+
+Usage:
+    applergui                Launch the GUI application
+    applergui --update       Update ApplerGUI to the latest version
+    applergui --version      Show version information
+    applergui --help         Show this help message
+
+ApplerGUI is a modern Linux GUI application for controlling Apple TV and HomePod devices.
+Visit https://github.com/ZProLegend007/ApplerGUI for more information.
+""")
+
+def launch_gui():
+    """Launch the GUI application."""
+    # Import GUI components only when needed
+    try:
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import QCoreApplication, QLoggingCategory
+        from PyQt6.QtGui import QPixmap, QIcon
+        import qasync
+    except ImportError as e:
+        print(f"❌ Failed to import GUI dependencies: {e}")
+        print("💡 Please install PyQt6: pip install PyQt6")
+        sys.exit(1)
+    
+    # SUPPRESS ALL Qt logging categories
+    QLoggingCategory.setFilterRules("*=false")
+
+    from .ui.main_window import ResponsiveMainWindow
+    from .backend.config_manager import ConfigManager
+    from .backend.device_controller import DeviceController
+    from .backend.pairing_manager import PairingManager
+    
+    # Create and set up the application
+    app = ApplerGUIApp()
+    app.setup_application()
+    app.setup_backend()
+    app.setup_ui()
+    app.setup_signal_handlers()
+    
+    # Run the application with async support
+    with qasync.QEventLoop(app.app) as loop:
+        loop.run_until_complete(app.run())
+
 def main():
     """Main entry point."""
-    try:
-        # Create and set up the application
-        app = ApplerGUIApp()
-        app.setup_application()
-        app.setup_backend()
-        app.setup_ui()
-        app.setup_signal_handlers()
-        
-        # Run the application with async support
-        with qasync.QEventLoop(app.app) as loop:
-            loop.run_until_complete(app.run())
+    parser = argparse.ArgumentParser(description='ApplerGUI - Control Apple TV and HomePod devices', add_help=False)
+    parser.add_argument('--update', action='store_true', help='Update ApplerGUI to the latest version')
+    parser.add_argument('--version', action='store_true', help='Show version information')
+    parser.add_argument('--help', action='store_true', help='Show help message')
     
+    args, unknown = parser.parse_known_args()
+    
+    # Handle command line arguments
+    if args.help:
+        handle_help()
+        return
+    
+    if args.version:
+        handle_version()
+        return
+    
+    if args.update:
+        handle_update()
+        return
+    
+    # No special arguments, launch the GUI
+    try:
+        launch_gui()
     except Exception as e:
         print(f"Failed to start application: {e}")
         sys.exit(1)
