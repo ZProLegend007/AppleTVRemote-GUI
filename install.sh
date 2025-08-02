@@ -69,7 +69,7 @@ print_progress() {
 spin() {
     local pid=$!
     local delay=0.1
-    local spinstr='|/-\'
+    local spinstr='|/-\\'
     while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
         local temp=${spinstr#?}
         printf " [%c]  " "$spinstr"
@@ -134,7 +134,7 @@ print_success "pip3 is available"
 echo ""
 print_status "Would you like to install system dependencies automatically? (Recommended)"
 read -p "Install dependencies? (Y/n): " -n 1 -r
-
+echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     INSTALL_DEPS=true
 else
