@@ -34,7 +34,7 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-sleep 4
+sleep 3
 
 # Professional status functions
 print_section() {
@@ -134,7 +134,7 @@ print_success "pip3 is available"
 echo ""
 print_status "Would you like to install system dependencies automatically? (Recommended)"
 read -p "Install dependencies? (Y/n): " -n 1 -r
-echo
+echo ""
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     INSTALL_DEPS=true
 else
