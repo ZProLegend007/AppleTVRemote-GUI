@@ -2,7 +2,7 @@
 # ApplerGUI Professional Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
 
-set -e  # Exit on any error
+# set -e  # Exit on any error
 
 # Clear screen for clean start
 clear
@@ -134,7 +134,7 @@ print_success "pip3 is available"
 echo ""
 print_status "Would you like to install system dependencies automatically? (Recommended)"
 read -p "Install dependencies? (Y/n): " -n 1 -r
-echo ""
+
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     INSTALL_DEPS=true
 else
