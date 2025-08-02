@@ -7,6 +7,8 @@ import sys
 import os
 import asyncio
 import signal
+import argparse
+import subprocess
 from pathlib import Path
 
 # Suppress Qt verbose logging for clean debug output
@@ -151,8 +153,71 @@ class ApplerGUIApp:
         finally:
             await self.cleanup()
 
+def handle_update():
+    """Handle the --update command."""
+    print("🔄 Starting ApplerGUI update...")
+    try:
+        # Try to download and run the update script
+        update_url = "https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh"
+        result = subprocess.run(['curl', '-fsSL', update_url], capture_output=True, text=True)
+        if result.returncode == 0:
+            # Run the update script
+            result = subprocess.run(['bash'], input=result.stdout, text=True)
+            if result.returncode == 0:
+                print("✅ Update completed successfully!")
+            else:
+                print("❌ Update failed!")
+                sys.exit(1)
+        else:
+            print("❌ Failed to download update script!")
+            print("💡 Please check your internet connection and try again.")
+            sys.exit(1)
+    except Exception as e:
+        print(f"❌ Update failed: {e}")
+        sys.exit(1)
+
+def handle_version():
+    """Handle the --version command."""
+    from . import __version__
+    print(f"ApplerGUI version {__version__}")
+
+def handle_help():
+    """Handle the --help command."""
+    print("""ApplerGUI - Control Apple TV and HomePod devices from Linux
+
+Usage:
+    applergui                Launch the GUI application
+    applergui --update       Update ApplerGUI to the latest version
+    applergui --version      Show version information
+    applergui --help         Show this help message
+
+ApplerGUI is a modern Linux GUI application for controlling Apple TV and HomePod devices.
+Visit https://github.com/ZProLegend007/ApplerGUI for more information.
+""")
+
 def main():
     """Main entry point."""
+    parser = argparse.ArgumentParser(description='ApplerGUI - Control Apple TV and HomePod devices', add_help=False)
+    parser.add_argument('--update', action='store_true', help='Update ApplerGUI to the latest version')
+    parser.add_argument('--version', action='store_true', help='Show version information')
+    parser.add_argument('--help', action='store_true', help='Show help message')
+    
+    args, unknown = parser.parse_known_args()
+    
+    # Handle command line arguments
+    if args.help:
+        handle_help()
+        return
+    
+    if args.version:
+        handle_version()
+        return
+    
+    if args.update:
+        handle_update()
+        return
+    
+    # No special arguments, launch the GUI
     try:
         # Create and set up the application
         app = ApplerGUIApp()

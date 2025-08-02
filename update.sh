@@ -82,6 +82,7 @@ spin() {
 # INSTALLATION VERIFICATION
 # ═══════════════════════════════════════════════════════════════════════
 
+clear
 print_section "CHECKING CURRENT INSTALLATION"
 
 # Check if ApplerGUI is already installed
@@ -176,21 +177,26 @@ else
     print_status "No existing configuration found - no backup needed"
 fi
 
-# Detect virtual environment
-VENV_PATH=""
-if [[ -n "$VIRTUAL_ENV" ]]; then
+# Detect installation method and paths
+INSTALL_DIR="$HOME/.local/share/applergui"
+VENV_PATH="$INSTALL_DIR/venv"
+CLI_SCRIPT="$HOME/.local/bin/applergui"
+
+print_progress "Checking installation paths..."
+if [ -d "$INSTALL_DIR" ] && [ -d "$VENV_PATH" ]; then
+    print_success "Found ApplerGUI installation at: ${BOLD}$INSTALL_DIR${NC}"
+    INSTALL_METHOD="standard"
+elif [[ -n "$VIRTUAL_ENV" ]]; then
     print_success "Virtual environment detected: ${BOLD}$VIRTUAL_ENV${NC}"
     VENV_PATH="$VIRTUAL_ENV"
-    IN_VENV=true
-elif [ -d "$HOME/.local/share/applergui-venv" ]; then
-    VENV_PATH="$HOME/.local/share/applergui-venv"
-    print_status "Found ApplerGUI virtual environment: ${BOLD}$VENV_PATH${NC}"
-    print_status "Activating virtual environment for update..."
-    source "$VENV_PATH/bin/activate"
-    IN_VENV=true
+    INSTALL_METHOD="venv"
+elif command -v applergui &> /dev/null; then
+    INSTALL_METHOD="system"
+    print_success "System installation detected"
 else
-    print_status "No virtual environment detected - using system Python"
-    IN_VENV=false
+    print_error "Could not determine installation method"
+    print_status "ApplerGUI may be installed but not properly configured"
+    exit 1
 fi
 
 sleep 1
@@ -202,30 +208,18 @@ sleep 1
 clear
 print_section "INSTALLATION METHOD DETECTION"
 
-# Determine installation method
-LOCAL_BIN="$HOME/.local/bin/applergui"
-VENV_BIN="$VENV_PATH/bin/applergui"
-
 print_progress "Analyzing current installation..."
 
-if [[ "$IN_VENV" == true ]] && [ -f "$VENV_BIN" ]; then
-    INSTALL_METHOD="venv"
-    print_success "Detected virtual environment installation"
-    print_status "Installation path: ${BOLD}$VENV_BIN${NC}"
-elif [ -f "$LOCAL_BIN" ]; then
-    INSTALL_METHOD="user"
-    print_success "Detected user installation"
-    print_status "Installation path: ${BOLD}$LOCAL_BIN${NC}"
-elif command -v applergui &> /dev/null; then
-    INSTALL_METHOD="system"
-    print_success "Detected system installation"
-    SYSTEM_PATH=$(which applergui)
-    print_status "Installation path: ${BOLD}$SYSTEM_PATH${NC}"
-else
-    print_error "Could not determine installation method"
-    print_status "ApplerGUI may be installed but not properly configured"
-    exit 1
+# Activate virtual environment for standard installation
+if [[ "$INSTALL_METHOD" == "standard" ]]; then
+    print_status "Activating virtual environment for update..."
+    source "$VENV_PATH/bin/activate"
+    print_success "Virtual environment activated"
+elif [[ "$INSTALL_METHOD" == "venv" ]]; then
+    print_success "Already in virtual environment"
 fi
+
+print_success "Installation method: ${BOLD}$INSTALL_METHOD${NC}"
 
 sleep 1
 
@@ -238,11 +232,7 @@ print_section "DEPENDENCY UPDATE"
 
 # Update pip first
 print_progress "Ensuring pip is up to date..."
-if [[ "$IN_VENV" == true ]]; then
-    python -m pip install --upgrade pip &
-else
-    python3 -m pip install --user --upgrade pip &
-fi
+python -m pip install --upgrade pip &
 spin
 print_success "pip updated successfully"
 
@@ -261,7 +251,7 @@ print_status "This may take a few minutes depending on your internet connection.
 echo ""
 
 case $INSTALL_METHOD in
-    "venv")
+    "standard"|"venv")
         print_status "Updating virtual environment installation..."
         if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git; then
             print_success "Update completed successfully!"
@@ -273,20 +263,8 @@ case $INSTALL_METHOD in
             exit 1
         fi
         ;;
-    "user")
-        print_status "Updating user installation..."
-        if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git; then
-            print_success "Update completed successfully!"
-        else
-            print_error "Update failed!"
-            if [ -d "$BACKUP_DIR" ]; then
-                print_status "Configuration backup is available at: ${BOLD}$BACKUP_DIR${NC}"
-            fi
-            exit 1
-        fi
-        ;;
     "system")
-        print_warning "System installation detected - attempting user update for safety"
+        print_warning "System installation detected - updating to user installation for safety"
         print_status "This will create a user installation alongside the system installation"
         if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git; then
             print_success "Update completed successfully!"
@@ -346,28 +324,17 @@ print_section "POST-UPDATE VERIFICATION"
 # Check if the command is available
 print_progress "Verifying executable availability..."
 
-if [[ "$IN_VENV" == true ]] && [ -f "$VENV_BIN" ]; then
-    print_success "✅ Update complete (Virtual Environment)!"
-    echo ""
-    print_status "To run ApplerGUI:"
-    echo "  ${BOLD}source $VENV_PATH/bin/activate && applergui${NC}"
-    
-elif command -v applergui &> /dev/null; then
+if python -c "import applergui; print('✅ ApplerGUI module imported successfully')" 2>/dev/null; then
     print_success "✅ Update complete!"
-    print_status "Run with: ${BOLD}applergui${NC}"
     
-elif [ -f "$LOCAL_BIN" ]; then
-    print_success "✅ Update complete!"
-    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        print_warning "Command not in PATH. Add ~/.local/bin to your PATH:"
-        echo "  ${BOLD}echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc${NC}"
-        echo "  ${BOLD}source ~/.bashrc${NC}"
+    if [ -f "$CLI_SCRIPT" ]; then
+        print_status "CLI command available: ${BOLD}applergui${NC}"
+    else
+        print_status "Run with: ${BOLD}python -m applergui${NC}"
     fi
-    print_status "Or run directly with: ${BOLD}$LOCAL_BIN${NC}"
-    
 else
-    print_warning "Update completed but command not found."
-    print_status "Try running: ${BOLD}python3 -m applergui${NC}"
+    print_warning "Update completed but module verification failed."
+    print_status "Try running: ${BOLD}python -m applergui${NC}"
 fi
 
 sleep 1
@@ -387,14 +354,10 @@ echo ""
 echo "📋 ${BOLD}What's Next:${NC}"
 echo ""
 echo "  1. ${BOLD}Launch ApplerGUI:${NC}"
-if [[ "$IN_VENV" == true ]]; then
-    echo "     ${CYAN}source $VENV_PATH/bin/activate && applergui${NC}"
-elif command -v applergui &> /dev/null; then
+if [ -f "$CLI_SCRIPT" ]; then
     echo "     ${CYAN}applergui${NC}"
-elif [ -f "$LOCAL_BIN" ]; then
-    echo "     ${CYAN}$LOCAL_BIN${NC}"
 else
-    echo "     ${CYAN}python3 -m applergui${NC}"
+    echo "     ${CYAN}python -m applergui${NC}"
 fi
 echo ""
 echo "  2. ${BOLD}Check for new features:${NC}"
@@ -422,14 +385,10 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_status "Launching ApplerGUI..."
     
-    if [[ "$IN_VENV" == true ]]; then
-        source "$VENV_PATH/bin/activate" && applergui &
-    elif command -v applergui &> /dev/null; then
-        applergui &
-    elif [ -f "$LOCAL_BIN" ]; then
-        "$LOCAL_BIN" &
+    if [ -f "$CLI_SCRIPT" ]; then
+        "$CLI_SCRIPT" &
     else
-        python3 -m applergui &
+        python -m applergui &
     fi
     
     print_success "ApplerGUI launched! Check your desktop for the application window."
