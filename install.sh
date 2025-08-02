@@ -34,6 +34,8 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+sleep 4
+
 # Professional status functions
 print_section() {
     echo ""
