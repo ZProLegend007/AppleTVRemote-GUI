@@ -18,22 +18,13 @@ os.environ['QT_ASSUME_STDERR_HAS_CONSOLE'] = '0'
 os.environ['QT_QUIET'] = '1'
 os.environ['QT_NO_DEBUG_OUTPUT'] = '1'
 
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QCoreApplication, QLoggingCategory
-from PyQt6.QtGui import QPixmap, QIcon
-import qasync
-
-# SUPPRESS ALL Qt logging categories
-QLoggingCategory.setFilterRules("*=false")
+# GUI imports - moved inside launch_gui function for conditional loading
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from .ui.main_window import ResponsiveMainWindow
-from .backend.config_manager import ConfigManager
-from .backend.device_controller import DeviceController
-from .backend.pairing_manager import PairingManager
+# Backend and UI imports - moved inside launch_gui function for conditional loading
 
 class ApplerGUIApp:
     """Main application class."""
@@ -195,6 +186,38 @@ ApplerGUI is a modern Linux GUI application for controlling Apple TV and HomePod
 Visit https://github.com/ZProLegend007/ApplerGUI for more information.
 """)
 
+def launch_gui():
+    """Launch the GUI application."""
+    # Import GUI components only when needed
+    try:
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import QCoreApplication, QLoggingCategory
+        from PyQt6.QtGui import QPixmap, QIcon
+        import qasync
+    except ImportError as e:
+        print(f"❌ Failed to import GUI dependencies: {e}")
+        print("💡 Please install PyQt6: pip install PyQt6")
+        sys.exit(1)
+    
+    # SUPPRESS ALL Qt logging categories
+    QLoggingCategory.setFilterRules("*=false")
+
+    from .ui.main_window import ResponsiveMainWindow
+    from .backend.config_manager import ConfigManager
+    from .backend.device_controller import DeviceController
+    from .backend.pairing_manager import PairingManager
+    
+    # Create and set up the application
+    app = ApplerGUIApp()
+    app.setup_application()
+    app.setup_backend()
+    app.setup_ui()
+    app.setup_signal_handlers()
+    
+    # Run the application with async support
+    with qasync.QEventLoop(app.app) as loop:
+        loop.run_until_complete(app.run())
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='ApplerGUI - Control Apple TV and HomePod devices', add_help=False)
@@ -219,17 +242,7 @@ def main():
     
     # No special arguments, launch the GUI
     try:
-        # Create and set up the application
-        app = ApplerGUIApp()
-        app.setup_application()
-        app.setup_backend()
-        app.setup_ui()
-        app.setup_signal_handlers()
-        
-        # Run the application with async support
-        with qasync.QEventLoop(app.app) as loop:
-            loop.run_until_complete(app.run())
-    
+        launch_gui()
     except Exception as e:
         print(f"Failed to start application: {e}")
         sys.exit(1)
