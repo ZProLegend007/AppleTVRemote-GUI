@@ -200,7 +200,7 @@ print_section "CHECKING CURRENT INSTALLATION"
 
 # Check if ApplerGUI is already installed
 progress "Verifying ApplerGUI installation..."
-if ! python3 -c "import applergui" 2>/dev/null; then
+if ! python3 -c "import applergui" &>/dev/null; then
     print_error "ApplerGUI is not installed on this system!"
     echo ""
     print_status "Please install ApplerGUI first using our installer:"
