@@ -63,7 +63,7 @@ cleanup() {
         # Offer to clean up partial installation
         if [ -d "$INSTALL_DIR" ] 2>/dev/null; then
             if ask_yn "Remove partial installation directory?" "n"; then
-                print_progress "Cleaning up partial installation..."
+                progress "Cleaning up partial installation..."
                 rm -rf "$INSTALL_DIR" 2>/dev/null || true
                 print_success "Cleanup completed"
             fi
@@ -89,65 +89,74 @@ print_status() {
 }
 
 print_success() {
+    end_progress
     echo -e "${GREEN}[✓ SUCCESS ]${NC} $1"
 }
 
 print_warning() {
+    end_progress
     echo -e "${YELLOW}[⚠ WARNING ]${NC} $1"
     add_warning "$1"
 }
 
 print_error() {
+    end_progress
     echo -e "${RED}[✗  ERROR  ]${NC} $1"
 }
 
-print_progress() {
-    echo -e "${PURPLE}[⟳ PROGRESS]${NC} $1"
+# Globals for spinner control
+__progress_pid=
+
+progress() {
+    local message="$1"
+    echo -ne "${PURPLE}[⟳ PROGRESS]${NC} $message "
+
+    # Start background spinner
+    {
+        local delay=0.1
+        local frames=(
+            "▱▱▱▱▱▱▱▱▱▱"
+            "▰▱▱▱▱▱▱▱▱▱"
+            "▰▰▱▱▱▱▱▱▱▱"
+            "▰▰▰▱▱▱▱▱▱▱"
+            "▰▰▰▰▱▱▱▱▱▱"
+            "▰▰▰▰▰▱▱▱▱▱"
+            "▰▰▰▰▰▰▱▱▱▱"
+            "▰▰▰▰▰▰▰▱▱▱"
+            "▰▰▰▰▰▰▰▰▱▱"
+            "▰▰▰▰▰▰▰▰▰▱"
+            "▰▰▰▰▰▰▰▰▰▰"
+            "▱▰▰▰▰▰▰▰▰▰"
+            "▱▱▰▰▰▰▰▰▰▰"
+            "▱▱▱▰▰▰▰▰▰▰"
+            "▱▱▱▱▰▰▰▰▰▰"
+            "▱▱▱▱▱▰▰▰▰▰"
+            "▱▱▱▱▱▱▰▰▰▰"
+            "▱▱▱▱▱▱▱▰▰▰"
+            "▱▱▱▱▱▱▱▱▰▰"
+            "▱▱▱▱▱▱▱▱▱▰"
+        )
+        local num_frames=${#frames[@]}
+        local i=0
+        tput civis
+        while true; do
+            printf "\r${PURPLE}[⟳ PROGRESS]${NC} %s [%s]  " "$message" "${frames[i]}"
+            i=$(( (i + 1) % num_frames ))
+            sleep $delay
+        done
+    } &
+    __progress_pid=$!
 }
 
-# Enhanced spinner animation function
-spin() {
-    local pid=$!
-    local delay=0.06
-
-    # Frames with 10 positions, progressive loading
-    local frames=(
-        "▱▱▱▱▱▱▱▱▱▱"
-        "▰▱▱▱▱▱▱▱▱▱"
-        "▰▰▱▱▱▱▱▱▱▱"
-        "▰▰▰▱▱▱▱▱▱▱"
-        "▰▰▰▰▱▱▱▱▱▱"
-        "▰▰▰▰▰▱▱▱▱▱"
-        "▰▰▰▰▰▰▱▱▱▱"
-        "▰▰▰▰▰▰▰▱▱▱"
-        "▰▰▰▰▰▰▰▰▱▱"
-        "▰▰▰▰▰▰▰▰▰▱"
-        "▰▰▰▰▰▰▰▰▰▰"
-        "▱▰▰▰▰▰▰▰▰▰"
-        "▱▱▰▰▰▰▰▰▰▰"
-        "▱▱▱▰▰▰▰▰▰▰"
-        "▱▱▱▱▰▰▰▰▰▰"
-        "▱▱▱▱▱▰▰▰▰▰"
-        "▱▱▱▱▱▱▰▰▰▰"
-        "▱▱▱▱▱▱▱▰▰▰"
-        "▱▱▱▱▱▱▱▱▰▰"
-        "▱▱▱▱▱▱▱▱▱▰"
-    )
-
-    local num_frames=${#frames[@]}
-    local i=0
-
-    tput civis  # hide cursor
-    while kill -0 "$pid" 2>/dev/null; do
-        printf "\r[%s]  " "${frames[i]}"
-        i=$(( (i + 1) % num_frames ))
-        sleep $delay
-    done
-    printf "\r%*s\r" 14 ""  # clear line (10 chars + brackets + space)
-    tput cnorm  # show cursor
+end_progress() {
+    if [[ -n "$__progress_pid" ]]; then
+        kill "$__progress_pid" 2>/dev/null
+        wait "$__progress_pid" 2>/dev/null
+        __progress_pid=
+        tput cnorm
+        printf "\r%*s\r" "$(tput cols)" ""  # Clear line
+    fi
 }
-
-
 
 # Professional input handling function
 ask_yn() {
@@ -189,7 +198,7 @@ ask_yn() {
 
 # System detection and classification
 detect_system() {
-    print_progress "Detecting system information..."
+    progress "Detecting system information..."
     
     # Detect OS
     if [ -f /etc/os-release ]; then
@@ -235,7 +244,7 @@ detect_system() {
 
 # Smart sudo handling with fallbacks
 check_sudo() {
-    print_progress "Checking sudo access..."
+    progress "Checking sudo access..."
     
     if command -v sudo &> /dev/null; then
         if sudo -n true 2>/dev/null; then
@@ -259,7 +268,7 @@ check_sudo() {
 
 # Internet connectivity check
 check_internet() {
-    print_progress "Checking internet connectivity..."
+    progress "Checking internet connectivity..."
     
     # Try multiple methods to check connectivity
     if command -v curl &> /dev/null; then
@@ -318,7 +327,7 @@ check_existing_installation() {
             clear
             print_section "Fresh ApplerGUI Installation"
             print_status "Proceeding with fresh installation..."
-            print_progress "Backing up existing installation..."
+            progress "Backing up existing installation..."
             
             local backup_dir="$install_dir.backup.$(date +%Y%m%d_%H%M%S)"
             if mv "$install_dir" "$backup_dir" 2>/dev/null; then
@@ -382,7 +391,7 @@ fi
 check_existing_installation
 
 # Check Python version
-print_progress "Checking Python installation..."
+progress "Checking Python installation..."
 if ! command -v python3 &> /dev/null; then
     print_warning "Python 3 is required but not installed!"
     echo ""
@@ -411,16 +420,16 @@ if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" 
 fi
 
 # Check pip
-print_progress "Checking pip installation..."
+progress "Checking pip installation..."
 if ! command -v pip3 &> /dev/null; then
-    print_error "Installing pip3 using your system's packet manager..."
+    print_info "Installing pip3 using your system's packet manager..."
     case "$PKG_MANAGER" in
         apt)    sudo apt install python3-pip ;;
         dnf)    sudo dnf install python3-pip ;;
         yum)    sudo yum install python3-pip ;;
         pacman) sudo pacman -S python-pip ;;
         zypper) sudo zypper install python3-pip ;;
-        *)      print_status "Error: Please install pip3 using your system's package manager" ;;
+        *)      print_error "Error: Please install pip3 using your system's package manager" ;;
     esac
     exit 1
 fi
@@ -428,13 +437,14 @@ fi
 print_success "pip3 is available"
 
 # Check virtual environment support
-print_progress "Checking virtual environment support..."
+progress "Checking virtual environment support..."
 if ! python3 -c "import venv" 2>/dev/null; then
     print_warning "python3-venv module not available"
     case "$PKG_MANAGER" in
         apt)    
             if [ "$SUDO_AVAILABLE" = true ]; then
-                print_progress "Installing python3-venv..."
+                end_progress
+                progress "Installing python3-venv..."
                 sudo apt install -y python3-venv
             else
                 print_status "Install with: ${BOLD}sudo apt install python3-venv${NC}"
@@ -486,17 +496,18 @@ clear
 print_section "SYSTEM DEPENDENCY INSTALLATION"
 
 # Enhanced dependency installation with better detection
-print_progress "Installing system dependencies automatically..."
+progress "Installing system dependencies automatically..."
 INSTALL_DEPS=true
 
 # Install system dependencies if on Linux
 if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
-    print_progress "Installing dependencies for $OS_NAME..."
+    end_progress
+    progress "Installing dependencies for $OS_NAME..."
     
     case "$PKG_MANAGER" in
         apt)
             print_success "Detected APT package manager (Ubuntu/Debian family)"
-            print_progress "Installing system dependencies..."
+            progress "Installing system dependencies..."
             
             REQUIRED_PACKAGES="python3-dev python3-pip libgl1-mesa-dev libegl1-mesa-dev python3-venv"
             MISSING_PACKAGES=""
@@ -512,7 +523,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
                 echo ""
                 print_status "Running: ${BOLD}sudo apt update && sudo apt install$MISSING_PACKAGES${NC}"
                 
-                if [ "$SUDO_AVAILABLE" = true ] && sudo apt update &> /dev/null && sudo apt install -y$MISSING_PACKAGES &> /dev/null & spin; then
+                if [ "$SUDO_AVAILABLE" = true ] && sudo apt update &> /dev/null && sudo apt install -y$MISSING_PACKAGES &> /dev/null; then
                     print_success "System dependencies installed successfully"
                 else
                     print_error "Failed to install system dependencies"
@@ -647,7 +658,7 @@ echo -e "  📂 Binary directory: ${BOLD}$BIN_DIR${NC}"
 echo ""
 
 # Create directories
-print_progress "Creating installation directories..."
+rogress "Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$BIN_DIR"
 print_success "Directories created successfully"
@@ -664,9 +675,9 @@ else
 fi
 
 print_success "Installation method: ${BOLD}$INSTALL_METHOD${NC}"
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # PYTHON ENVIRONMENT SETUP
 # ═══════════════════════════════════════════════════════════════════════
@@ -676,7 +687,7 @@ print_section "PYTHON ENVIRONMENT SETUP"
 
 # Create virtual environment in the install directory
 VENV_PATH="$INSTALL_DIR/venv"
-print_progress "Creating virtual environment at $VENV_PATH..."
+progress "Creating virtual environment at $VENV_PATH..."
 
 if [ -d "$VENV_PATH" ]; then
     print_warning "Virtual environment already exists, removing old one..."
@@ -695,13 +706,13 @@ else
 fi
 
 # Upgrade pip first
-print_progress "Ensuring pip is up to date..."
+progress "Ensuring pip is up to date..."
 python -m pip install --upgrade pip &> /dev/null &
 spin
 print_success "pip updated successfully"
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # APPLERGUI INSTALLATION
 # ═══════════════════════════════════════════════════════════════════════
@@ -709,10 +720,8 @@ sleep 1
 clear
 print_section "APPLERGUI INSTALLATION"
 
-print_progress "Installing ApplerGUI and dependencies..."
-echo ""
+progress "Installing ApplerGUI and dependencies..."
 print_status "This may take a few minutes depending on your internet connection..."
-echo ""
 
 # Install ApplerGUI
 if [[ "$INSTALL_METHOD" == "local" ]]; then
@@ -746,7 +755,7 @@ clear
 print_section "CLI COMMAND CREATION"
 
 if [[ "$CREATE_CLI" == true ]]; then
-    print_progress "Creating CLI command at $CLI_SCRIPT..."
+    progress "Creating CLI command at $CLI_SCRIPT..."
     
     # Create the CLI wrapper script
     cat > "$CLI_SCRIPT" << 'EOF'
@@ -772,7 +781,7 @@ EOF
     print_success "CLI command created successfully"
     
     # Add ~/.local/bin to PATH if not already there
-    print_progress "Ensuring ~/.local/bin is in PATH..."
+    progress "Ensuring ~/.local/bin is in PATH..."
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
         print_success "Added ~/.local/bin to PATH in ~/.bashrc"
@@ -784,9 +793,9 @@ EOF
 else
     print_warning "CLI command creation skipped (user choice)"
 fi
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # INSTALLATION VERIFICATION
 # ═══════════════════════════════════════════════════════════════════════
@@ -794,7 +803,7 @@ sleep 1
 clear
 print_section "INSTALLATION VERIFICATION"
 
-print_progress "Verifying installation..."
+progress "Verifying installation..."
 
 # Test if applergui module can be imported
 if python -c "import applergui; print('✅ ApplerGUI module imported successfully')" 2>/dev/null; then
@@ -813,9 +822,9 @@ else
     print_status "ApplerGUI module could not be imported."
     exit 1
 fi
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # DESKTOP INTEGRATION
 # ═══════════════════════════════════════════════════════════════════════
@@ -825,7 +834,7 @@ print_section "DESKTOP INTEGRATION"
 
 # Create desktop entry if requested
 if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$CREATE_DESKTOP" == true ]]; then
-    print_progress "Setting up desktop integration..."
+    progress "Setting up desktop integration..."
     
     DESKTOP_DIR="$HOME/.local/share/applications"
     DESKTOP_FILE="$DESKTOP_DIR/applergui.desktop"
@@ -884,9 +893,9 @@ else
         print_warning "Desktop integration skipped (not Linux)"
     fi
 fi
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # INSTALLATION COMPLETE
 # ═══════════════════════════════════════════════════════════════════════
