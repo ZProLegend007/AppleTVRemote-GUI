@@ -37,6 +37,9 @@ class DiscoveryPanel(QFrame):
         self.selected_device = None
         self.current_device = None  # Currently connected device
         
+        # Initialize loading animation counter to prevent AttributeError
+        self.loading_dots = 0
+        
         # Add environment debugging
         self._debug_launch_environment()
         
