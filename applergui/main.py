@@ -42,6 +42,7 @@ class ApplerGUIApp:
         from PyQt6.QtWidgets import QApplication
         from PyQt6.QtCore import QCoreApplication
         from PyQt6.QtGui import QIcon
+        from .backend.config_manager import ConfigManager
         
         # Set application properties
         QCoreApplication.setApplicationName("ApplerGUI")
