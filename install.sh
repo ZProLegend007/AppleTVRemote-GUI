@@ -102,7 +102,7 @@ print_error() {
 }
 
 print_progress() {
-    echo -e "${PURPLE}[PROGRESS]${NC} $1"
+    echo -e "${PURPLE}[⟳ PROGRESS]${NC} $1"
 }
 
 # Enhanced spinner animation function
@@ -201,7 +201,6 @@ detect_system() {
     fi
     
     print_success "System detected: $OS_NAME $OS_VERSION ($ARCH)"
-    print_status "Package manager: $PKG_MANAGER"
 }
 
 # Smart sudo handling with fallbacks
@@ -256,20 +255,21 @@ check_internet() {
     print_error "No internet connectivity detected"
     return 1
 }
-
+print_status "Package manager: $PKG_MANAGER"
 # Check for existing installation and offer update
 check_existing_installation() {
     local install_dir="$HOME/.local/share/applergui"
     
     if [ -d "$install_dir" ]; then
-        print_warning "Existing ApplerGUI installation detected at: $install_dir"
+        print_status "Existing ApplerGUI installation detected at: $install_dir"
+        
         echo ""
         print_status "You have two options:"
         echo "  1. Update existing installation (recommended)"
         echo "  2. Fresh installation (removes current installation)"
         echo ""
         
-        if ask_yn "Would you like to update the existing installation instead?" "y"; then
+        if ask_yn "Update the existing installation?" "y"; then
             print_status "Redirecting to update process..."
             print_status "Downloading and running updater..."
             
