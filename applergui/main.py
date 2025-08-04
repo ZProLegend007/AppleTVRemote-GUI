@@ -9,6 +9,7 @@ import asyncio
 import signal
 import argparse
 import subprocess
+import tempfile
 from pathlib import Path
 
 # Suppress Qt verbose logging for clean debug output
@@ -173,13 +174,22 @@ class ApplerGUIApp:
 def handle_update():
     """Handle the --update command."""
     print("🔄 Starting ApplerGUI update...")
+    temp_script = None
     try:
         # Try to download and run the update script
         update_url = "https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh"
         result = subprocess.run(['curl', '-fsSL', update_url], capture_output=True, text=True)
         if result.returncode == 0:
-            # Run the update script
-            result = subprocess.run(['bash'], input=result.stdout, text=True)
+            # Write the update script to a temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+                f.write(result.stdout)
+                temp_script = f.name
+            
+            # Make the script executable
+            os.chmod(temp_script, 0o755)
+            
+            # Run the update script directly (preserves signal handling)
+            result = subprocess.run(['bash', temp_script])
             if result.returncode == 0:
                 print("✅ Update completed successfully!")
             else:
@@ -192,6 +202,13 @@ def handle_update():
     except Exception as e:
         print(f"❌ Update failed: {e}")
         sys.exit(1)
+    finally:
+        # Clean up temporary file
+        if temp_script and os.path.exists(temp_script):
+            try:
+                os.unlink(temp_script)
+            except Exception:
+                pass  # Ignore cleanup errors
 
 def handle_version():
     """Handle the --version command."""
