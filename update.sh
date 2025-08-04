@@ -367,9 +367,7 @@ end_progress
 clear
 print_section "APPLERGUI UPDATE"
 
-echo ""
 print_status "This may take a few minutes depending on your internet connection..."
-echo ""
 progress "Updating ApplerGUI to the latest version..."
 
 case $INSTALL_METHOD in
