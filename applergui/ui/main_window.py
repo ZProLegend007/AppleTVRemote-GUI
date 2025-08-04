@@ -1,6 +1,7 @@
 """Main application window for AppleTVRemote-GUI."""
 
 import sys
+import os
 import logging
 from typing import Optional, Dict, Any
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
@@ -155,22 +156,12 @@ class DiscoveryPanel(QFrame):
         # Remove custom light styling - let the global dark theme apply
         return button
     
-    def _safe_start_discovery(self):
+    @qasync.asyncSlot()
+    async def _safe_start_discovery(self):
         """Safe discovery start with error handling"""
         try:
-            # Use asyncio to run the async discovery method
-            import qasync
-            import asyncio
-            
-            # Get current event loop or create new one
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            # Schedule the async discovery
-            asyncio.create_task(self._start_discovery())
+            # Await the async discovery method directly
+            await self._start_discovery()
             
         except Exception as e:
             print(f"❌ Discovery start error: {e}")
@@ -260,7 +251,8 @@ class DiscoveryPanel(QFrame):
                 
                 # Use asyncio.wait_for for additional timeout protection
                 import asyncio
-                devices = await asyncio.wait_for(pyatv.scan(timeout=8), timeout=12)
+                loop = asyncio.get_event_loop()
+                devices = await asyncio.wait_for(pyatv.scan(timeout=8, loop=loop), timeout=12)
                 
                 self.discovered_devices = []
                 for device in devices:
@@ -334,7 +326,8 @@ class DiscoveryPanel(QFrame):
                 
                 # Use asyncio.wait_for for additional timeout protection
                 import asyncio
-                devices = await asyncio.wait_for(pyatv.scan(timeout=8), timeout=12)
+                loop = asyncio.get_event_loop()
+                devices = await asyncio.wait_for(pyatv.scan(timeout=8, loop=loop), timeout=12)
                 
                 self.discovered_devices = []
                 for device in devices:

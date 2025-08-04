@@ -57,9 +57,9 @@ class DeviceController(QObject):
             devices = []
             for conf in atvs:
                 device_info = {
-                    'id': conf.identifier or conf.address,
+                    'id': conf.identifier or str(conf.address),
                     'name': conf.name,
-                    'address': conf.address,  
+                    'address': str(conf.address),  # Convert IPv4Address to string
                     'identifier': conf.identifier,
                     'model': getattr(conf, 'model', 'Unknown'),
                     'services': []
@@ -80,7 +80,7 @@ class DeviceController(QObject):
                 # Store in known devices
                 self.config_manager.add_known_device(device_info['id'], device_info)
                 
-                self.discovery_progress.emit(f"Added: {conf.name} ({conf.address})")
+                self.discovery_progress.emit(f"Added: {conf.name} ({str(conf.address)})")
             
             self.discovery_progress.emit("Discovery complete")
             self.devices_discovered.emit(devices)
