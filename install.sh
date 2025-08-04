@@ -139,7 +139,7 @@ progress() {
         local i=0
         tput civis
         while true; do
-            printf "\r${PURPLE}"${frames[i]}"${NC} %s [%s]  " "$message"
+            printf "\r${PURPLE}"${frames[i]}"${NC} %s  " "$message"
             i=$(( (i + 1) % num_frames ))
             sleep $delay
         done
