@@ -952,7 +952,6 @@ fi
 
 echo ""
 print_success "Thank you for installing ApplerGUI! Enjoy controlling your Apple devices! 🍎"
-echo ""
 
 # Display warning summary if any warnings were collected
 if [ ${#WARNINGS[@]} -gt 0 ]; then
