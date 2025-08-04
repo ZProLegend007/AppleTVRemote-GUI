@@ -1,7 +1,7 @@
 #!/bin/bash
 # ApplerGUI Professional Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
-import colorama
+
 set -e  # Exit on any error
 
 # Clear screen for clean start
@@ -56,8 +56,8 @@ cleanup() {
         echo "  4. Check the installation log above for specific errors"
         echo ""
         print_status "🆘 Get help:"
-        echo "  - GitHub Issues: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
-        echo "  - Discussions: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+        echo -e "  - GitHub Issues: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
+        echo -e "  - Discussions: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
         echo ""
         
         # Offer to clean up partial installation
@@ -79,7 +79,7 @@ trap 'echo ""; print_warning "Installation interrupted by user"; exit 130' INT T
 print_section() {
     echo ""
     echo -e "${BOLD}${BLUE}╔═══════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}${BLUE}║${NC} ${WHITE}${1}${NC}${BOLD}${BLUE}║${NC}"
+    echo -e "${BOLD}${BLUE}║${NC} ${WHITE}${1}${NC}${BOLD}${BLUE}                                  ║${NC}"
     echo -e "${BOLD}${BLUE}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -280,7 +280,7 @@ check_existing_installation() {
             else
                 print_error "Neither curl nor wget available for downloading updater"
                 print_status "Please install curl or wget, or remove existing installation:"
-                echo "  ${BOLD}rm -rf $install_dir${NC}"
+                echo -e "  ${BOLD}rm -rf $install_dir${NC}"
                 exit 1
             fi
             exit 0
@@ -356,11 +356,11 @@ if ! command -v python3 &> /dev/null; then
     echo ""
     print_status "Install Python 3.8+ with your package manager:"
     case "$PKG_MANAGER" in
-        apt)    echo "  ${BOLD}sudo apt install python3 python3-pip python3-venv${NC}" ;;
-        dnf)    echo "  ${BOLD}sudo dnf install python3 python3-pip${NC}" ;;
-        yum)    echo "  ${BOLD}sudo yum install python3 python3-pip${NC}" ;;
-        pacman) echo "  ${BOLD}sudo pacman -S python python-pip${NC}" ;;
-        zypper) echo "  ${BOLD}sudo zypper install python3 python3-pip${NC}" ;;
+        apt)    echo -e "  ${BOLD}sudo apt install python3 python3-pip python3-venv${NC}" ;;
+        dnf)    echo -e "  ${BOLD}sudo dnf install python3 python3-pip${NC}" ;;
+        yum)    echo -e "  ${BOLD}sudo yum install python3 python3-pip${NC}" ;;
+        pacman) echo -e "  ${BOLD}sudo pacman -S python python-pip${NC}" ;;
+        zypper) echo -e "  ${BOLD}sudo zypper install python3 python3-pip${NC}" ;;
         *)      echo "  Please install Python 3.8+ and pip using your system's package manager" ;;
     esac
     exit 1
@@ -485,7 +485,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
                 else
                     print_error "Failed to install system dependencies"
                     print_warning "You may need to install them manually:"
-                    echo "  ${BOLD}sudo apt update && sudo apt install $MISSING_PACKAGES${NC}"
+                    echo -e "  ${BOLD}sudo apt update && sudo apt install $MISSING_PACKAGES${NC}"
                     if ! ask_yn "Continue anyway?" "n"; then
                         exit 1
                     fi
@@ -559,19 +559,19 @@ print_section "INSTALLATION SUMMARY"
 
 print_status "📋 Installation Summary:"
 echo ""
-echo "  🖥️  ${BOLD}System:${NC} $OS_NAME $OS_VERSION ($ARCH)"
-echo "  📦 ${BOLD}Package Manager:${NC} $PKG_MANAGER"
-echo "  🐍 ${BOLD}Python Version:${NC} $PYTHON_VERSION"
-echo "  📁 ${BOLD}Install Directory:${NC} $INSTALL_DIR"
-echo "  🔗 ${BOLD}CLI Command:${NC} $CLI_SCRIPT"
+echo -e "  🖥️  ${BOLD}System:${NC} $OS_NAME $OS_VERSION ($ARCH)"
+echo -e "  📦 ${BOLD}Package Manager:${NC} $PKG_MANAGER"
+echo -e "  🐍 ${BOLD}Python Version:${NC} $PYTHON_VERSION"
+echo -e "  📁 ${BOLD}Install Directory:${NC} $INSTALL_DIR"
+echo -e "  🔗 ${BOLD}CLI Command:${NC} $CLI_SCRIPT"
 echo ""
-echo "  ⚙️  ${BOLD}Configuration:${NC}"
+echo -e "  ⚙️  ${BOLD}Configuration:${NC}"
 echo "     Desktop Entry: $([ "$CREATE_DESKTOP" = true ] && echo "✅ Yes" || echo "❌ No")"
 echo "     CLI Shortcut: $([ "$CREATE_CLI" = true ] && echo "✅ Yes" || echo "❌ No")"
 echo "     Development Tools: $([ "$INSTALL_DEV" = true ] && echo "✅ Yes" || echo "❌ No")"
 echo ""
-echo "  🌐 ${BOLD}Installation Method:${NC} $INSTALL_METHOD"
-echo "  🔒 ${BOLD}Sudo Available:${NC} $([ "$SUDO_AVAILABLE" = true ] && echo "✅ Yes" || echo "❌ No")"
+echo -e "  🌐 ${BOLD}Installation Method:${NC} $INSTALL_METHOD"
+echo -e "  🔒 ${BOLD}Sudo Available:${NC} $([ "$SUDO_AVAILABLE" = true ] && echo "✅ Yes" || echo "❌ No")"
 echo ""
 
 print_status "This installation will:"
@@ -589,7 +589,7 @@ if ! ask_yn "Proceed with installation?" "y"; then
     print_status "Installation cancelled by user"
     echo ""
     print_status "You can run this installer again anytime with:"
-    echo "  ${BOLD}curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash${NC}"
+    echo -e "  ${BOLD}curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash${NC}"
     exit 0
 fi
 
@@ -609,9 +609,9 @@ BIN_DIR="$HOME/.local/bin"
 CLI_SCRIPT="$BIN_DIR/applergui"
 
 print_status "Setting up installation directories..."
-echo "  📁 Install directory: ${BOLD}$INSTALL_DIR${NC}"
-echo "  🔗 CLI command: ${BOLD}$CLI_SCRIPT${NC}"
-echo "  📂 Binary directory: ${BOLD}$BIN_DIR${NC}"
+echo -e "  📁 Install directory: ${BOLD}$INSTALL_DIR${NC}"
+echo -e "  🔗 CLI command: ${BOLD}$CLI_SCRIPT${NC}"
+echo -e "  📂 Binary directory: ${BOLD}$BIN_DIR${NC}"
 echo ""
 
 # Create directories
@@ -698,8 +698,8 @@ else
     echo ""
     print_status "Troubleshooting steps:"
     echo "  1. Check your internet connection"
-    echo "  2. Ensure you have the latest pip: ${BOLD}python3 -m pip install --upgrade pip${NC}"
-    echo "  3. Try installing dependencies manually: ${BOLD}pip install PyQt6${NC}"
+    echo -e "  2. Ensure you have the latest pip: ${BOLD}python3 -m pip install --upgrade pip${NC}"
+    echo -e "  3. Try installing dependencies manually: ${BOLD}pip install PyQt6${NC}"
     echo "  4. Check the GitHub repository: https://github.com/ZProLegend007/ApplerGUI"
     exit 1
 fi
@@ -863,42 +863,42 @@ clear
 print_section "INSTALLATION COMPLETE"
 
 echo ""
-echo "🎉 ${BOLD}${GREEN}ApplerGUI has been installed successfully!${NC} 🎉"
+echo -e "🎉 ${BOLD}${GREEN}ApplerGUI has been installed successfully!${NC} 🎉"
 echo ""
 echo "════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "📋 ${BOLD}Quick Start Guide:${NC}"
+echo -e "📋 ${BOLD}Quick Start Guide:${NC}"
 echo ""
-echo "  1. ${BOLD}Launch ApplerGUI:${NC}"
+echo -e "  1. ${BOLD}Launch ApplerGUI:${NC}"
 if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
-    echo "     ${CYAN}applergui${NC}"
+    echo -e "     ${CYAN}applergui${NC}"
 else
-    echo "     ${CYAN}cd $INSTALL_DIR && source venv/bin/activate && python -m applergui${NC}"
+    echo -e "     ${CYAN}cd $INSTALL_DIR && source venv/bin/activate && python -m applergui${NC}"
 fi
 echo ""
-echo "  2. ${BOLD}CLI Commands:${NC}"
+echo -e "  2. ${BOLD}CLI Commands:${NC}"
 if [[ "$CREATE_CLI" == true ]]; then
-    echo "     ${CYAN}applergui --help${NC}     Show help"
-    echo "     ${CYAN}applergui --version${NC}  Show version"
-    echo "     ${CYAN}applergui --update${NC}   Update to latest version"
+    echo -e "     ${CYAN}applergui --help${NC}     Show help"
+    echo -e "     ${CYAN}applergui --version${NC}  Show version"
+    echo -e "     ${CYAN}applergui --update${NC}   Update to latest version"
 fi
 echo ""
-echo "  2. ${BOLD}Connect your devices:${NC}"
+echo -e "  2. ${BOLD}Connect your devices:${NC}"
 echo "     - Ensure Apple TV/HomePod is on the same network"
 echo "     - Use the device discovery feature in ApplerGUI"
 echo "     - Follow the pairing prompts"
 echo ""
-echo "  3. ${BOLD}Start controlling:${NC}"
+echo -e "  3. ${BOLD}Start controlling:${NC}"
 echo "     - Play/pause media"
 echo "     - Adjust volume"
 echo "     - Browse content"
 echo ""
 echo "════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "📚 ${BOLD}Resources:${NC}"
-echo "   Documentation: ${BLUE}https://github.com/ZProLegend007/ApplerGUI${NC}"
-echo "   Report Issues:  ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
-echo "   Get Support:   ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+echo -e "📚 ${BOLD}Resources:${NC}"
+echo -e "   Documentation: ${BLUE}https://github.com/ZProLegend007/ApplerGUI${NC}"
+echo -e "   Report Issues:  ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
+echo -e "   Get Support:   ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
 echo ""
 echo "════════════════════════════════════════════════════════════════════════"
 echo ""
@@ -938,6 +938,6 @@ if [ ${#WARNINGS[@]} -gt 0 ]; then
 fi
 
 # Add update reminder
-echo "💡 ${BOLD}Pro Tip:${NC} Keep ApplerGUI updated with:"
-echo "   ${CYAN}curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh | bash${NC}"
+echo -e "💡 ${BOLD}Pro Tip:${NC} Keep ApplerGUI updated with:"
+echo -e "   ${CYAN}curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh | bash${NC}"
 echo ""
