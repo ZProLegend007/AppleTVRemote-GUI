@@ -137,7 +137,7 @@ echo ""
 
 # Desktop entry
 read -p "Create desktop entry? (Y/n): " -n 1 -r
-while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
+while read -r -t 0.1; do :; done > /dev/tty 2>/dev/null  # Flush remaining input
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     CREATE_DESKTOP=true
