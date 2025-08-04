@@ -112,7 +112,7 @@ progress() {
 
     # Start background spinner
     {
-        local delay=0.1
+        local delay=0.06
         local frames=(
             "[▱▱▱▱▱▱▱▱▱▱]"
             "[▰▱▱▱▱▱▱▱▱▱]"
