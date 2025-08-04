@@ -108,20 +108,45 @@ print_progress() {
 # Enhanced spinner animation function
 spin() {
     local pid=$!
-    local delay=0.1
-    local frames=("▱▱▱▱" "▰▱▱▱" "▰▰▱▱" "▰▰▰▱" "▰▰▰▰" "▱▰▰▰" "▱▱▰▰" "▱▱▱▰")
+    local delay=0.06
+
+    # Frames with 10 positions, progressive loading
+    local frames=(
+        "▱▱▱▱▱▱▱▱▱▱"
+        "▰▱▱▱▱▱▱▱▱▱"
+        "▰▰▱▱▱▱▱▱▱▱"
+        "▰▰▰▱▱▱▱▱▱▱"
+        "▰▰▰▰▱▱▱▱▱▱"
+        "▰▰▰▰▰▱▱▱▱▱"
+        "▰▰▰▰▰▰▱▱▱▱"
+        "▰▰▰▰▰▰▰▱▱▱"
+        "▰▰▰▰▰▰▰▰▱▱"
+        "▰▰▰▰▰▰▰▰▰▱"
+        "▰▰▰▰▰▰▰▰▰▰"
+        "▱▰▰▰▰▰▰▰▰▰"
+        "▱▱▰▰▰▰▰▰▰▰"
+        "▱▱▱▰▰▰▰▰▰▰"
+        "▱▱▱▱▰▰▰▰▰▰"
+        "▱▱▱▱▱▰▰▰▰▰"
+        "▱▱▱▱▱▱▰▰▰▰"
+        "▱▱▱▱▱▱▱▰▰▰"
+        "▱▱▱▱▱▱▱▱▰▰"
+        "▱▱▱▱▱▱▱▱▱▰"
+    )
+
     local num_frames=${#frames[@]}
     local i=0
 
-#    tput civis  # hide cursor
+    tput civis  # hide cursor
     while kill -0 "$pid" 2>/dev/null; do
         printf "\r[%s]  " "${frames[i]}"
         i=$(( (i + 1) % num_frames ))
         sleep $delay
     done
-    printf "\r      \r"
-#    tput cnorm  # show cursor
+    printf "\r%*s\r" 14 ""  # clear line (10 chars + brackets + space)
+    tput cnorm  # show cursor
 }
+
 
 
 # Professional input handling function
