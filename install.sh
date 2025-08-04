@@ -1,7 +1,7 @@
 #!/bin/bash
 # ApplerGUI Professional Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash
-
+import colorama
 set -e  # Exit on any error
 
 # Clear screen for clean start
