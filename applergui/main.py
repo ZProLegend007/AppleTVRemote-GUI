@@ -145,8 +145,9 @@ class ApplerGUIApp:
         """Run the application initialization."""
         try:
             # Skip auto-discovery on startup to avoid event loop conflicts
-            # Auto-discovery can be triggered manually by the user
-            print("🚀 ApplerGUI started successfully - use Discovery tab to find devices")
+            # Manual discovery via UI uses a separate thread mechanism and works reliably
+            print("🚀 ApplerGUI started successfully")
+            print("💡 Use the Discovery tab to find and connect to Apple TV devices")
             
             # Try to reconnect to last used device if available
             last_device = self.config_manager.get('last_device')
@@ -156,6 +157,7 @@ class ApplerGUIApp:
                     print(f"🔄 Attempting to reconnect to last device: {last_device}")
                     try:
                         await self.device_controller.connect_device(last_device)
+                        print(f"✅ Reconnected to {last_device}")
                     except Exception as e:
                         print(f"⚠️ Failed to reconnect to last device: {e}")
             
@@ -244,7 +246,7 @@ def launch_gui():
         init_timer = QTimer()
         init_timer.timeout.connect(lambda: loop.create_task(app.run()))
         init_timer.setSingleShot(True)
-        init_timer.start(100)  # Start after 100ms
+        init_timer.start(500)  # Start after 500ms for more stable initialization
         # Use exec() instead of run_forever() - this is the proper Qt way
         app.app.exec()
 
