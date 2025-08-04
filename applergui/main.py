@@ -38,6 +38,11 @@ class ApplerGUIApp:
     
     def setup_application(self):
         """Set up the Qt application."""
+        # Import Qt classes when needed
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import QCoreApplication
+        from PyQt6.QtGui import QIcon
+        
         # Set application properties
         QCoreApplication.setApplicationName("ApplerGUI")
         QCoreApplication.setApplicationVersion("1.0.0")
@@ -51,6 +56,7 @@ class ApplerGUIApp:
         # Set application icon if available
         icon_path = project_root / "resources" / "icons" / "app_icon.png"
         if icon_path.exists():
+            from PyQt6.QtGui import QIcon
             app_icon = QIcon(str(icon_path))
             self.app.setWindowIcon(app_icon)
             print(f"✅ Application icon set from: {icon_path}")

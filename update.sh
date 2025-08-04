@@ -34,6 +34,35 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Warning collection system
+WARNINGS=()
+add_warning() {
+    WARNINGS+=("$1")
+}
+
+# Enhanced error handling and cleanup
+cleanup() {
+    local exit_code=$?
+    echo ""
+    if [ $exit_code -ne 0 ] && [ $exit_code -ne 130 ]; then
+        print_error "Update failed with exit code $exit_code"
+        echo ""
+        print_status "🔧 Troubleshooting steps:"
+        echo "  1. Check your internet connection"
+        echo "  2. Ensure you have sufficient disk space"
+        echo "  3. Verify ApplerGUI is properly installed"
+        echo "  4. Check the update log above for specific errors"
+        echo ""
+        print_status "📞 Get help:"
+        echo "  - GitHub Issues: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
+        echo "  - Discussions: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+    fi
+}
+
+# Enhanced signal handlers for cleanup
+trap cleanup EXIT
+trap 'echo ""; print_warning "Update interrupted by user"; echo ""; print_status "Update cancelled. You can run the updater again anytime."; exit 130' INT TERM
+
 # Professional status functions (matching installer)
 print_section() {
     echo ""
@@ -53,6 +82,7 @@ print_success() {
 
 print_warning() {
     echo -e "${YELLOW}[⚠ WARNING]${NC} $1"
+    add_warning "$1"
 }
 
 print_error() {
@@ -76,6 +106,49 @@ spin() {
         printf "\b\b\b\b\b\b"
     done
     printf "    \b\b\b\b"
+}
+
+# Professional input handling function (from installer)
+ask_yn() {
+    local prompt="$1"
+    local default="$2"
+    local response
+    
+    while true; do
+        if [ "$default" = "y" ]; then
+            echo -n "${prompt} (Y/n): "
+        elif [ "$default" = "n" ]; then
+            echo -n "${prompt} (y/N): "
+        else
+            echo -n "${prompt} (y/n): "
+        fi
+        
+        # Read from /dev/tty for proper input handling even in piped scenarios
+        read -r response < /dev/tty
+        
+        case "$response" in
+            [Yy]|[Yy][Ee][Ss])
+                return 0
+                ;;
+            [Nn]|[Nn][Oo])
+                return 1
+                ;;
+            "")
+                # Empty response - use default
+                if [ "$default" = "y" ]; then
+                    return 0
+                elif [ "$default" = "n" ]; then
+                    return 1
+                else
+                    echo "Please answer yes or no."
+                    continue
+                fi
+                ;;
+            *)
+                echo "Please answer yes or no."
+                ;;
+        esac
+    done
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -128,9 +201,7 @@ if pgrep -f "applergui" > /dev/null; then
     print_warning "ApplerGUI is currently running"
     echo ""
     print_status "The application needs to be stopped for a safe update."
-    read -p "Stop ApplerGUI to proceed with update? (Y/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    if ask_yn "Stop ApplerGUI to proceed with update?" "y"; then
         print_progress "Stopping ApplerGUI processes..."
         pkill -f "applergui" || true
         sleep 2
@@ -302,9 +373,7 @@ if [ -d "$BACKUP_DIR" ]; then
     print_progress "Cleaning up backup..."
     echo ""
     print_status "Update successful! The configuration backup can be safely removed."
-    read -p "Remove backup directory? (Y/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    if ask_yn "Remove backup directory?" "y"; then
         rm -rf "$BACKUP_DIR"
         print_success "Backup directory removed"
     else
@@ -380,9 +449,7 @@ echo "════════════════════════�
 echo ""
 
 # Launch option
-read -p "Would you like to launch ApplerGUI now? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask_yn "Would you like to launch ApplerGUI now?" "n"; then
     print_status "Launching ApplerGUI..."
     
     if [ -f "$CLI_SCRIPT" ]; then
@@ -398,4 +465,19 @@ fi
 
 echo ""
 print_success "Thank you for keeping ApplerGUI up to date! Enjoy the latest features! 🍎"
+
+# Display warning summary if any warnings were collected
+if [ ${#WARNINGS[@]} -gt 0 ]; then
+    echo ""
+    print_section "⚠️  UPDATE WARNINGS SUMMARY"
+    echo "The following ${#WARNINGS[@]} warning(s) were encountered during update:"
+    echo ""
+    for i in "${!WARNINGS[@]}"; do
+        echo "  $((i+1)). ${WARNINGS[i]}"
+    done
+    echo ""
+    print_status "These warnings don't prevent ApplerGUI from working, but you may want to address them."
+    print_status "For help with any issues, visit: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+fi
+
 echo ""

@@ -34,6 +34,12 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Warning collection system
+WARNINGS=()
+add_warning() {
+    WARNINGS+=("$1")
+}
+
 sleep 3
 
 # Enhanced error handling and cleanup
@@ -88,6 +94,7 @@ print_success() {
 
 print_warning() {
     echo -e "${YELLOW}[⚠ WARNING]${NC} $1"
+    add_warning "$1"
 }
 
 print_error() {
@@ -914,6 +921,21 @@ fi
 echo ""
 print_success "Thank you for installing ApplerGUI! Enjoy controlling your Apple devices! 🍎"
 echo ""
+
+# Display warning summary if any warnings were collected
+if [ ${#WARNINGS[@]} -gt 0 ]; then
+    echo ""
+    print_section "⚠️  INSTALLATION WARNINGS SUMMARY"
+    echo "The following ${#WARNINGS[@]} warning(s) were encountered during installation:"
+    echo ""
+    for i in "${!WARNINGS[@]}"; do
+        echo "  $((i+1)). ${WARNINGS[i]}"
+    done
+    echo ""
+    print_status "These warnings don't prevent ApplerGUI from working, but you may want to address them."
+    print_status "For help with any issues, visit: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+    echo ""
+fi
 
 # Add update reminder
 echo "💡 ${BOLD}Pro Tip:${NC} Keep ApplerGUI updated with:"
