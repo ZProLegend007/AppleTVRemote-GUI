@@ -73,24 +73,24 @@ print_section() {
 }
 
 print_status() {
-    echo -e "${CYAN}[INFO]${NC} $1"
+    echo -e "${CYAN}[   INFO   ]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[✓ SUCCESS]${NC} $1"
+    echo -e "${GREEN}[✓ SUCCESS ]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[⚠ WARNING]${NC} $1"
+    echo -e "${YELLOW}[⚠ WARNING ]${NC} $1"
     add_warning "$1"
 }
 
 print_error() {
-    echo -e "${RED}[✗ ERROR]${NC} $1"
+    echo -e "${RED}[✗  ERROR  ]${NC} $1"
 }
 
 print_progress() {
-    echo -e "${PURPLE}[PROGRESS]${NC} $1"
+    echo -e "${PURPLE}[⟳ PROGRESS]${NC} $1"
 }
 
 # Spinner animation function (matching installer)
