@@ -109,7 +109,6 @@ __progress_pid=
 
 progress() {
     local message="$1"
-    echo -ne "${PURPLE}[⟳ PROGRESS]${NC} $message "
 
     # Start background spinner
     {
@@ -140,12 +139,13 @@ progress() {
         local i=0
         tput civis
         while true; do
-            printf "\r${PURPLE}[⟳ PROGRESS]${NC} %s [%s]  " "$message" "${frames[i]}"
+            printf "\r${PURPLE}"${frames[i]}"${NC} %s [%s]  " "$message"
             i=$(( (i + 1) % num_frames ))
             sleep $delay
         done
     } &
     __progress_pid=$!
+    disown __progress_pid=$!
 }
 
 end_progress() {
