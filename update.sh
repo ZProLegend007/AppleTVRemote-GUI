@@ -448,7 +448,8 @@ print_section "POST-UPDATE VERIFICATION"
 # Check if the command is available
 progress "Verifying executable availability..."
 
-if python -c "import applergui; print('✅ ApplerGUI module imported successfully')" 2>/dev/null; then
+if python -c "import applergui" &>/dev/null; then; 
+    print_success "✅ ApplerGUI module imported successfully"
     print_success "✅ Update complete!"
     
     if [ -f "$CLI_SCRIPT" ]; then
