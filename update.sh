@@ -307,7 +307,7 @@ print_section "DEPENDENCY UPDATE"
 
 # Update pip first
 print_progress "Ensuring pip is up to date..."
-python -m pip install --upgrade pip &
+python -m pip install --upgrade pip &> /dev/null &
 spin
 print_success "pip updated successfully"
 
@@ -328,7 +328,7 @@ echo ""
 case $INSTALL_METHOD in
     "standard"|"venv")
         print_status "Updating virtual environment installation..."
-        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git; then
+        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null & spin; then
             print_success "Update completed successfully!"
         else
             print_error "Update failed!"
@@ -341,7 +341,7 @@ case $INSTALL_METHOD in
     "system")
         print_warning "System installation detected - updating to user installation for safety"
         print_status "This will create a user installation alongside the system installation"
-        if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git; then
+        if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null & spin; then
             print_success "Update completed successfully!"
             print_warning "Note: User installation will take precedence over system installation"
         else
