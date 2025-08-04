@@ -77,39 +77,75 @@ print_status() {
 }
 
 print_success() {
+    end_progress
     echo -e "${GREEN}[✓ SUCCESS ]${NC} $1"
 }
 
 print_warning() {
+    end_progress
     echo -e "${YELLOW}[⚠ WARNING ]${NC} $1"
     add_warning "$1"
 }
 
 print_error() {
+    end_progress
     echo -e "${RED}[✗  ERROR  ]${NC} $1"
 }
 
-print_progress() {
-    echo -e "${PURPLE}[⟳ PROGRESS]${NC} $1"
+# Globals for spinner control
+__progress_pid=
+
+progress() {
+    local message="$1"
+
+    # Start background spinner
+    {
+        local delay=0.05
+        local frames=(
+            "[▱▱▱▱▱▱▱▱▱▱]"
+            "[▰▱▱▱▱▱▱▱▱▱]"
+            "[▰▰▱▱▱▱▱▱▱▱]"
+            "[▰▰▰▱▱▱▱▱▱▱]"
+            "[▰▰▰▰▱▱▱▱▱▱]"
+            "[▰▰▰▰▰▱▱▱▱▱]"
+            "[▰▰▰▰▰▰▱▱▱▱]"
+            "[▰▰▰▰▰▰▰▱▱▱]"
+            "[▰▰▰▰▰▰▰▰▱▱]"
+            "[▰▰▰▰▰▰▰▰▰▱]"
+            "[▰▰▰▰▰▰▰▰▰▰]"
+            "[▱▰▰▰▰▰▰▰▰▰]"
+            "[▱▱▰▰▰▰▰▰▰▰]"
+            "[▱▱▱▰▰▰▰▰▰▰]"
+            "[▱▱▱▱▰▰▰▰▰▰]"
+            "[▱▱▱▱▱▰▰▰▰▰]"
+            "[▱▱▱▱▱▱▰▰▰▰]"
+            "[▱▱▱▱▱▱▱▰▰▰]"
+            "[▱▱▱▱▱▱▱▱▰▰]"
+            "[▱▱▱▱▱▱▱▱▱▰]"
+            "[▱▱▱▱▱▱▱▱▱▱]"
+            "[▱▱▱▱▱▱▱▱▱▱]"
+        )
+        local num_frames=${#frames[@]}
+        local i=0
+        tput civis
+        while true; do
+            printf "\r${WHITE}"${frames[i]}"${NC} %s  " "$message"
+            i=$(( (i + 1) % num_frames ))
+            sleep $delay
+        done
+    } &
+    __progress_pid=$!
+    disown $__progress_pid
 }
 
-# Spinner animation function (matching installer)
-# Enhanced spinner animation function
-spin() {
-    local pid=$!
-    local delay=0.1
-    local frames=("▱▱▱▱" "▰▱▱▱" "▰▰▱▱" "▰▰▰▱" "▰▰▰▰" "▱▰▰▰" "▱▱▰▰" "▱▱▱▰")
-    local num_frames=${#frames[@]}
-    local i=0
-
-#    tput civis  # hide cursor
-    while kill -0 "$pid" 2>/dev/null; do
-        printf "\r[%s]  " "${frames[i]}"
-        i=$(( (i + 1) % num_frames ))
-        sleep $delay
-    done
-    printf "\r      \r"
-#    tput cnorm  # show cursor
+end_progress() {
+    if [[ -n "$__progress_pid" ]]; then
+        kill "$__progress_pid" 2>/dev/null
+        wait "$__progress_pid" 2>/dev/null
+        __progress_pid=
+        tput cnorm
+        printf "\r%*s\r" "$(tput cols)" ""  # Clear line
+    fi
 }
 
 # Professional input handling function (from installer)
@@ -163,7 +199,7 @@ clear
 print_section "CHECKING CURRENT INSTALLATION"
 
 # Check if ApplerGUI is already installed
-print_progress "Verifying ApplerGUI installation..."
+progress "Verifying ApplerGUI installation..."
 if ! python3 -c "import applergui" 2>/dev/null; then
     print_error "ApplerGUI is not installed on this system!"
     echo ""
@@ -176,7 +212,7 @@ fi
 print_success "ApplerGUI installation found"
 
 # Get current version
-print_progress "Checking current version..."
+progress "Checking current version..."
 CURRENT_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
 print_success "Current version: ${BOLD}$CURRENT_VERSION${NC}"
 
@@ -190,7 +226,9 @@ if [[ $EUID -eq 0 ]]; then
 fi
 
 print_success "Security check passed - running as regular user"
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # PROCESS MANAGEMENT
@@ -200,13 +238,13 @@ clear
 print_section "PROCESS MANAGEMENT"
 
 # Stop ApplerGUI if it's running
-print_progress "Checking for running ApplerGUI processes..."
+progress "Checking for running ApplerGUI processes..."
 if pgrep -f "applergui" > /dev/null; then
     print_warning "ApplerGUI is currently running"
     echo ""
     print_status "The application needs to be stopped for a safe update."
     if ask_yn "Stop ApplerGUI to proceed with update?" "y"; then
-        print_progress "Stopping ApplerGUI processes..."
+        progress "Stopping ApplerGUI processes..."
         pkill -f "applergui" || true
         sleep 2
         
@@ -227,7 +265,9 @@ else
     print_success "No running ApplerGUI processes found"
 fi
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # BACKUP SYSTEM
@@ -241,7 +281,7 @@ CONFIG_DIR="$HOME/.config/applergui"
 BACKUP_DIR="$HOME/.config/applergui.backup.$(date +%Y%m%d_%H%M%S)"
 
 if [ -d "$CONFIG_DIR" ]; then
-    print_progress "Creating configuration backup..."
+    progress "Creating configuration backup..."
     if cp -r "$CONFIG_DIR" "$BACKUP_DIR"; then
         print_success "Configuration backed up to: ${BOLD}$BACKUP_DIR${NC}"
     else
@@ -257,7 +297,7 @@ INSTALL_DIR="$HOME/.local/share/applergui"
 VENV_PATH="$INSTALL_DIR/venv"
 CLI_SCRIPT="$HOME/.local/bin/applergui"
 
-print_progress "Checking installation paths..."
+progress "Checking installation paths..."
 if [ -d "$INSTALL_DIR" ] && [ -d "$VENV_PATH" ]; then
     print_success "Found ApplerGUI installation at: ${BOLD}$INSTALL_DIR${NC}"
     INSTALL_METHOD="standard"
@@ -274,7 +314,9 @@ else
     exit 1
 fi
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # INSTALLATION METHOD DETECTION
@@ -283,11 +325,13 @@ sleep 1
 clear
 print_section "INSTALLATION METHOD DETECTION"
 
-print_progress "Analyzing current installation..."
+progress "Analyzing current installation..."
 
 # Activate virtual environment for standard installation
 if [[ "$INSTALL_METHOD" == "standard" ]]; then
+    end_progress
     print_status "Activating virtual environment for update..."
+    progress "Analyzing current installation..."
     source "$VENV_PATH/bin/activate"
     print_success "Virtual environment activated"
 elif [[ "$INSTALL_METHOD" == "venv" ]]; then
@@ -296,7 +340,9 @@ fi
 
 print_success "Installation method: ${BOLD}$INSTALL_METHOD${NC}"
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # DEPENDENCY UPDATE
@@ -306,12 +352,13 @@ clear
 print_section "DEPENDENCY UPDATE"
 
 # Update pip first
-print_progress "Ensuring pip is up to date..."
-python -m pip install --upgrade pip &> /dev/null &
-spin
+progress "Ensuring pip is up to date..."
+python -m pip install --upgrade pip &> /dev/null
 print_success "pip updated successfully"
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # APPLERGUI UPDATE
@@ -320,15 +367,17 @@ sleep 1
 clear
 print_section "APPLERGUI UPDATE"
 
-print_progress "Updating ApplerGUI to the latest version..."
 echo ""
 print_status "This may take a few minutes depending on your internet connection..."
 echo ""
+progress "Updating ApplerGUI to the latest version..."
 
 case $INSTALL_METHOD in
     "standard"|"venv")
+        end_progress
         print_status "Updating virtual environment installation..."
-        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null & spin; then
+        progress "Updating ApplerGUI to the latest version..."
+        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null; then
             print_success "Update completed successfully!"
         else
             print_error "Update failed!"
@@ -341,7 +390,8 @@ case $INSTALL_METHOD in
     "system")
         print_warning "System installation detected - updating to user installation for safety"
         print_status "This will create a user installation alongside the system installation"
-        if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null & spin; then
+        progress "Updating ApplerGUI to the latest version..."
+        if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null; then
             print_success "Update completed successfully!"
             print_warning "Note: User installation will take precedence over system installation"
         else
@@ -351,7 +401,9 @@ case $INSTALL_METHOD in
         ;;
 esac
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # UPDATE VERIFICATION
@@ -361,7 +413,7 @@ clear
 print_section "UPDATE VERIFICATION"
 
 # Get new version
-print_progress "Verifying update..."
+progress "Verifying update..."
 NEW_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
 
 if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
@@ -374,7 +426,6 @@ fi
 
 # Clean up backup if update was successful
 if [ -d "$BACKUP_DIR" ]; then
-    print_progress "Cleaning up backup..."
     echo ""
     print_status "Update successful! The configuration backup can be safely removed."
     if ask_yn "Remove backup directory?" "y"; then
@@ -385,7 +436,9 @@ if [ -d "$BACKUP_DIR" ]; then
     fi
 fi
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # POST-UPDATE VERIFICATION
@@ -395,7 +448,7 @@ clear
 print_section "POST-UPDATE VERIFICATION"
 
 # Check if the command is available
-print_progress "Verifying executable availability..."
+progress "Verifying executable availability..."
 
 if python -c "import applergui; print('✅ ApplerGUI module imported successfully')" 2>/dev/null; then
     print_success "✅ Update complete!"
@@ -410,7 +463,9 @@ else
     print_status "Try running: ${BOLD}python -m applergui${NC}"
 fi
 
+progress
 sleep 1
+end_progress
 
 # ═══════════════════════════════════════════════════════════════════════
 # UPDATE COMPLETE
