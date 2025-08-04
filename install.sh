@@ -286,7 +286,7 @@ check_existing_installation() {
             fi
             exit 0
         else
-            claer
+            clear
             print_section "Fresh ApplerGUI Installation"
             print_status "Proceeding with fresh installation..."
             print_progress "Backing up existing installation..."
