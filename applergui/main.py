@@ -35,6 +35,7 @@ class ApplerGUIApp:
         self.config_manager = None
         self.device_controller = None
         self.pairing_manager = None
+        self.event_loop = None
     
     def setup_application(self):
         """Set up the Qt application."""
@@ -53,6 +54,9 @@ class ApplerGUIApp:
         self.app = QApplication(sys.argv)
         self.app.setApplicationDisplayName("ApplerGUI")
         
+        # Connect cleanup to app quit signal
+        self.app.aboutToQuit.connect(self.sync_cleanup)
+        
         # Set application icon if available
         icon_path = project_root / "resources" / "icons" / "app_icon.png"
         if icon_path.exists():
@@ -70,7 +74,7 @@ class ApplerGUIApp:
         from .backend.pairing_manager import PairingManager
         
         self.config_manager = ConfigManager()
-        self.device_controller = DeviceController(self.config_manager)
+        self.device_controller = DeviceController(self.config_manager, self.event_loop)
         self.pairing_manager = PairingManager(self.config_manager)
     
     def setup_ui(self):
@@ -107,12 +111,19 @@ class ApplerGUIApp:
         """Set up signal handlers for graceful shutdown."""
         def signal_handler(sig, frame):
             print("\nShutting down gracefully...")
-            # Schedule cleanup to run in the event loop
-            asyncio.create_task(self.cleanup())
-            sys.exit(0)
+            # Use Qt's quit mechanism for proper shutdown
+            if self.app:
+                self.app.quit()
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+    
+    def sync_cleanup(self):
+        """Synchronous cleanup for Qt signals."""
+        if self.main_window:
+            # Save window geometry
+            geometry = self.main_window.saveGeometry()
+            self.config_manager.set('window_geometry', geometry.data().hex())
     
     async def cleanup(self):
         """Clean up resources before exit."""
@@ -133,18 +144,20 @@ class ApplerGUIApp:
     async def run(self):
         """Run the application initialization."""
         try:
-            # Auto-discover devices on startup if enabled
-            if self.config_manager.get('auto_discover', True):
-                await self.device_controller.discover_devices(
-                    timeout=self.config_manager.get('discovery_timeout', 10)
-                )
+            # Skip auto-discovery on startup to avoid event loop conflicts
+            # Auto-discovery can be triggered manually by the user
+            print("🚀 ApplerGUI started successfully - use Discovery tab to find devices")
             
-            # Try to reconnect to last used device
+            # Try to reconnect to last used device if available
             last_device = self.config_manager.get('last_device')
             if last_device:
                 known_devices = self.config_manager.get_known_devices()
                 if last_device in known_devices:
-                    await self.device_controller.connect_device(last_device)
+                    print(f"🔄 Attempting to reconnect to last device: {last_device}")
+                    try:
+                        await self.device_controller.connect_device(last_device)
+                    except Exception as e:
+                        print(f"⚠️ Failed to reconnect to last device: {e}")
             
             print("✅ ApplerGUI initialization complete - app will run until closed by user")
         
@@ -224,8 +237,14 @@ def launch_gui():
     
     # Run the application with async support
     with qasync.QEventLoop(app.app) as loop:
-        # Schedule initialization but don't wait for it to complete
-        loop.create_task(app.run())
+        # Store the loop instance in the app
+        app.event_loop = loop
+        # Use a QTimer to delay initialization until after the Qt event loop is running
+        from PyQt6.QtCore import QTimer
+        init_timer = QTimer()
+        init_timer.timeout.connect(lambda: loop.create_task(app.run()))
+        init_timer.setSingleShot(True)
+        init_timer.start(100)  # Start after 100ms
         # Use exec() instead of run_forever() - this is the proper Qt way
         app.app.exec()
 

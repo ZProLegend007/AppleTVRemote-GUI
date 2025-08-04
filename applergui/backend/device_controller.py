@@ -24,9 +24,10 @@ class DeviceController(QObject):
     discovery_progress = pyqtSignal(str)
     discovery_error = pyqtSignal(str)
     
-    def __init__(self, config_manager: ConfigManager):
+    def __init__(self, config_manager: ConfigManager, event_loop=None):
         super().__init__()
         self.config_manager = config_manager
+        self.event_loop = event_loop
         self._connected_devices: Dict[str, AppleTV] = {}
         self._device_info: Dict[str, Dict[str, Any]] = {}
         self._current_device_id: Optional[str] = None
@@ -44,8 +45,9 @@ class DeviceController(QObject):
             self.discovery_started.emit()
             self.discovery_progress.emit("Starting Apple TV discovery...")
             
-            # Scan for devices
-            atvs = await pyatv.scan(timeout=timeout, loop=asyncio.get_event_loop())
+            # Scan for devices - use the stored event loop or fall back to current
+            loop = self.event_loop if self.event_loop else asyncio.get_event_loop()
+            atvs = await pyatv.scan(loop, timeout=timeout)
             
             if not atvs:
                 self.discovery_progress.emit("No Apple TV devices found")
@@ -132,8 +134,9 @@ class DeviceController(QObject):
                     if service_name in credentials:
                         service.credentials = credentials[service_name]
             
-            # Connect to device
-            atv = await pyatv.connect(config, loop=asyncio.get_event_loop())
+            # Connect to device - use the stored event loop or fall back to current
+            loop = self.event_loop if self.event_loop else asyncio.get_event_loop()
+            atv = await pyatv.connect(config, loop)
             
             # Store connection
             self._connected_devices[device_id] = atv
