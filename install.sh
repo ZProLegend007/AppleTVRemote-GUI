@@ -137,7 +137,7 @@ echo ""
 
 # Desktop entry
 read -p "Create desktop entry? (Y/n): " -n 1 -r
-while IFS= read -r -t 0.1; do :; done 2>/dev/null  # Flush remaining input
+while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     CREATE_DESKTOP=true
@@ -147,7 +147,7 @@ fi
 
 # CLI shortcut
 read -p "Create CLI command shortcut? (Y/n): " -n 1 -r
-while IFS= read -r -t 0.1; do :; done 2>/dev/null  # Flush remaining input
+while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     CREATE_CLI=true
@@ -157,7 +157,7 @@ fi
 
 # Development tools
 read -p "Install development tools? (y/N): " -n 1 -r
-while IFS= read -r -t 0.1; do :; done 2>/dev/null  # Flush remaining input
+while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     INSTALL_DEV=true
@@ -206,7 +206,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
                 print_warning "You may need to install them manually:"
                 echo "  ${BOLD}sudo apt update && sudo apt install $MISSING_PACKAGES${NC}"
                 read -p "Continue anyway? (y/N): " -n 1 -r
-                while IFS= read -r -t 0.1; do :; done 2>/dev/null  # Flush remaining input
+                while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
                 echo
                 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                     exit 1
@@ -251,7 +251,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
         echo "  - OpenGL/EGL development libraries"
         echo ""
         read -p "Continue with installation? (y/N): " -n 1 -r
-        while IFS= read -r -t 0.1; do :; done 2>/dev/null  # Flush remaining input
+        while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
