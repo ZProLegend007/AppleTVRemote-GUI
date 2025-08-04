@@ -479,11 +479,11 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
             done
             
             if [ ! -z "$MISSING_PACKAGES" ]; then
-                print_warning "Installing missing packages: $MISSING_PACKAGES"
+                print_status "Installing packages: $MISSING_PACKAGES"
                 echo ""
                 print_status "Running: ${BOLD}sudo apt update && sudo apt install $MISSING_PACKAGES${NC}"
                 
-                if [ "$SUDO_AVAILABLE" = true ] && sudo apt update && sudo apt install -y $MISSING_PACKAGES; then
+                if [ "$SUDO_AVAILABLE" = true ] && sudo apt update && sudo apt install -y $MISSING_PACKAGES > /dev/null; then
                     print_success "System dependencies installed successfully"
                 else
                     print_error "Failed to install system dependencies"
@@ -667,7 +667,7 @@ fi
 
 # Upgrade pip first
 print_progress "Ensuring pip is up to date..."
-python -m pip install --upgrade pip &
+python -m pip install --upgrade pip > /dev/null &
 spin
 print_success "pip updated successfully"
 
@@ -694,7 +694,7 @@ else
     INSTALL_CMD="pip install git+https://github.com/ZProLegend007/ApplerGUI.git"
 fi
 
-if eval $INSTALL_CMD; then
+if eval $INSTALL_CMD > /dev/null; then
     print_success "ApplerGUI installed successfully!"
 else
     print_error "Installation failed!"
