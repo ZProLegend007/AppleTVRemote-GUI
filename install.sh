@@ -109,8 +109,8 @@ print_progress() {
 spin() {
     local pid=$!
     local delay=0.1
-    local spinstr='|/-\\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+    local spinstr='▱▱▱▱''▰▱▱▱''▰▰▱▱''▰▰▰▱''▰▰▰▰''▱▰▰▰''▱▱▰▰''▱▱▱▰'
+    while [ "$(ps a | awk '{print $4}' | grep $pid)" ]; do
         local temp=${spinstr#?}
         printf " [%c]  " "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
@@ -483,7 +483,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
                 echo ""
                 print_status "Running: ${BOLD}sudo apt update && sudo apt install$MISSING_PACKAGES${NC}"
                 
-                if [ "$SUDO_AVAILABLE" = true ] && sudo apt update > /dev/null && sudo apt install -y$MISSING_PACKAGES > /dev/null; then
+                if [ "$SUDO_AVAILABLE" = true ] && sudo apt update &> /dev/null && sudo apt install -y$MISSING_PACKAGES &> /dev/null & spin; then
                     print_success "System dependencies installed successfully"
                 else
                     print_error "Failed to install system dependencies"
