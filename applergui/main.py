@@ -131,7 +131,7 @@ class ApplerGUIApp:
                 await self.device_controller.disconnect_device(device_id)
     
     async def run(self):
-        """Run the application."""
+        """Run the application initialization."""
         try:
             # Auto-discover devices on startup if enabled
             if self.config_manager.get('auto_discover', True):
@@ -146,8 +146,7 @@ class ApplerGUIApp:
                 if last_device in known_devices:
                     await self.device_controller.connect_device(last_device)
             
-            # Initialization is complete, the Qt event loop will handle the rest
-            # The main() function has already set up the event loop context
+            print("✅ ApplerGUI initialization complete - app will run until closed by user")
         
         except KeyboardInterrupt:
             print("Application interrupted by user")
@@ -225,7 +224,10 @@ def launch_gui():
     
     # Run the application with async support
     with qasync.QEventLoop(app.app) as loop:
-        loop.run_until_complete(app.run())
+        # Schedule initialization but don't wait for it to complete
+        loop.create_task(app.run())
+        # Use exec() instead of run_forever() - this is the proper Qt way
+        app.app.exec()
 
 def main():
     """Main entry point."""
