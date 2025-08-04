@@ -114,32 +114,32 @@ progress() {
     {
         local delay=0.1
         local frames=(
-            "▱▱▱▱▱▱▱▱▱▱"
-            "▰▱▱▱▱▱▱▱▱▱"
-            "▰▰▱▱▱▱▱▱▱▱"
-            "▰▰▰▱▱▱▱▱▱▱"
-            "▰▰▰▰▱▱▱▱▱▱"
-            "▰▰▰▰▰▱▱▱▱▱"
-            "▰▰▰▰▰▰▱▱▱▱"
-            "▰▰▰▰▰▰▰▱▱▱"
-            "▰▰▰▰▰▰▰▰▱▱"
-            "▰▰▰▰▰▰▰▰▰▱"
-            "▰▰▰▰▰▰▰▰▰▰"
-            "▱▰▰▰▰▰▰▰▰▰"
-            "▱▱▰▰▰▰▰▰▰▰"
-            "▱▱▱▰▰▰▰▰▰▰"
-            "▱▱▱▱▰▰▰▰▰▰"
-            "▱▱▱▱▱▰▰▰▰▰"
-            "▱▱▱▱▱▱▰▰▰▰"
-            "▱▱▱▱▱▱▱▰▰▰"
-            "▱▱▱▱▱▱▱▱▰▰"
-            "▱▱▱▱▱▱▱▱▱▰"
+            "[▱▱▱▱▱▱▱▱▱▱]"
+            "[▰▱▱▱▱▱▱▱▱▱]"
+            "[▰▰▱▱▱▱▱▱▱▱]"
+            "[▰▰▰▱▱▱▱▱▱▱]"
+            "[▰▰▰▰▱▱▱▱▱▱]"
+            "[▰▰▰▰▰▱▱▱▱▱]"
+            "[▰▰▰▰▰▰▱▱▱▱]"
+            "[▰▰▰▰▰▰▰▱▱▱]"
+            "[▰▰▰▰▰▰▰▰▱▱]"
+            "[▰▰▰▰▰▰▰▰▰▱]"
+            "[▰▰▰▰▰▰▰▰▰▰]"
+            "[▱▰▰▰▰▰▰▰▰▰]"
+            "[▱▱▰▰▰▰▰▰▰▰]"
+            "[▱▱▱▰▰▰▰▰▰▰]"
+            "[▱▱▱▱▰▰▰▰▰▰]"
+            "[▱▱▱▱▱▰▰▰▰▰]"
+            "[▱▱▱▱▱▱▰▰▰▰]"
+            "[▱▱▱▱▱▱▱▰▰▰]"
+            "[▱▱▱▱▱▱▱▱▰▰]"
+            "[▱▱▱▱▱▱▱▱▱▰]"
         )
         local num_frames=${#frames[@]}
         local i=0
         tput civis
         while true; do
-            printf "\r${PURPLE}"[${frames[i]}]"${NC} %s [%s]  " "$message"
+            printf "\r${PURPLE}"${frames[i]}"${NC} %s [%s]  " "$message"
             i=$(( (i + 1) % num_frames ))
             sleep $delay
         done
@@ -712,8 +712,7 @@ fi
 
 # Upgrade pip first
 progress "Ensuring pip is up to date..."
-python -m pip install --upgrade pip &> /dev/null &
-spin
+python -m pip install --upgrade pip &> /dev/null
 print_success "pip updated successfully"
 progress
 sleep 1
@@ -725,19 +724,23 @@ end_progress
 clear
 print_section "APPLERGUI INSTALLATION"
 
-progress "Installing ApplerGUI and dependencies..."
 print_status "This may take a few minutes depending on your internet connection..."
+progress "Installing ApplerGUI and dependencies..."
 
 # Install ApplerGUI
 if [[ "$INSTALL_METHOD" == "local" ]]; then
+    end_progress
     print_status "Installing from local source..."
+    progress "Installing ApplerGUI and dependencies..."
     INSTALL_CMD="pip install -e ."
 else
+    end_progress
     print_status "Installing from GitHub repository..."
+    progress "Installing ApplerGUI and dependencies..."
     INSTALL_CMD="pip install git+https://github.com/ZProLegend007/ApplerGUI.git"
 fi
 
-if eval $INSTALL_CMD &> /dev/null & spin; then
+if eval $INSTALL_CMD &> /dev/null; then
     print_success "ApplerGUI installed successfully!"
 else
     print_error "Installation failed!"
@@ -749,9 +752,9 @@ else
     echo "  4. Check the GitHub repository: https://github.com/ZProLegend007/ApplerGUI"
     exit 1
 fi
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # CLI COMMAND CREATION
 # ═══════════════════════════════════════════════════════════════════════
