@@ -270,7 +270,7 @@ check_existing_installation() {
         echo "  2. Fresh installation (removes current installation)"
         echo ""
         
-        if ask_yn "Choose your option:" "y"; then
+        if ask_yn "Update installation?" "y"; then
             print_status "Redirecting to update process..."
             print_status "Downloading and running updater..."
             
