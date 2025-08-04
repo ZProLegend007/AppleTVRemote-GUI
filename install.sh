@@ -139,7 +139,7 @@ progress() {
         local i=0
         tput civis
         while true; do
-            printf "\r${PURPLE}"${frames[i]}"${NC} %s [%s]  " "$message"
+            printf "\r${PURPLE}"[${frames[i]}]"${NC} %s [%s]  " "$message"
             i=$(( (i + 1) % num_frames ))
             sleep $delay
         done
@@ -422,7 +422,8 @@ fi
 # Check pip
 progress "Checking pip installation..."
 if ! command -v pip3 &> /dev/null; then
-    print_info "Installing pip3 using your system's packet manager..."
+    end_progress
+    print_status "Installing pip3 using your system's packet manager..."
     case "$PKG_MANAGER" in
         apt)    sudo apt install python3-pip ;;
         dnf)    sudo dnf install python3-pip ;;
@@ -447,11 +448,13 @@ if ! python3 -c "import venv" 2>/dev/null; then
                 progress "Installing python3-venv..."
                 sudo apt install -y python3-venv
             else
+                end_progress
                 print_status "Install with: ${BOLD}sudo apt install python3-venv${NC}"
                 exit 1
             fi
             ;;
         *)
+            end_progress
             print_warning "Virtual environment support may be limited"
             ;;
     esac
@@ -519,9 +522,11 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
             done
             
             if [ ! -z "$MISSING_PACKAGES" ]; then
+                end_progress
                 print_status "Installing packages:$MISSING_PACKAGES"
                 echo ""
                 print_status "Running: ${BOLD}sudo apt update && sudo apt install$MISSING_PACKAGES${NC}"
+                progress "Installing system dependencies..."
                 
                 if [ "$SUDO_AVAILABLE" = true ] && sudo apt update &> /dev/null && sudo apt install -y$MISSING_PACKAGES &> /dev/null; then
                     print_success "System dependencies installed successfully"
@@ -590,9 +595,9 @@ else
         print_warning "Non-Linux system detected - skipping system dependencies"
     fi
 fi
-
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # INSTALLATION SUMMARY
 # ═══════════════════════════════════════════════════════════════════════
@@ -658,7 +663,7 @@ echo -e "  📂 Binary directory: ${BOLD}$BIN_DIR${NC}"
 echo ""
 
 # Create directories
-rogress "Creating installation directories..."
+progress "Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$BIN_DIR"
 print_success "Directories created successfully"
