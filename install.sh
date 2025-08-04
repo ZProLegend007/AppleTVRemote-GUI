@@ -145,7 +145,7 @@ progress() {
         done
     } &
     __progress_pid=$!
-    disown __progress_pid=$!
+    disown $__progress_pid
 }
 
 end_progress() {
