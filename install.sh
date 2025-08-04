@@ -136,34 +136,25 @@ print_status "Essential configuration questions:"
 echo ""
 
 # Desktop entry
-read -p "Create desktop entry? (Y/n): " -n 1 -r
-while read -r -t 0.1; do :; done > /dev/tty 2>/dev/null  # Flush remaining input
-echo
-if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    CREATE_DESKTOP=true
-else
-    CREATE_DESKTOP=false
-fi
+read -r -p "Create desktop entry? (Y/n): " response
+case "$response" in
+    [Nn]* ) CREATE_DESKTOP=false;;
+    * ) CREATE_DESKTOP=true;;
+esac
 
 # CLI shortcut
-read -p "Create CLI command shortcut? (Y/n): " -n 1 -r
-while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
-echo
-if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    CREATE_CLI=true
-else
-    CREATE_CLI=false
-fi
+read -r -p "Create CLI command shortcut? (Y/n): " response
+case "$response" in
+    [Nn]* ) CREATE_CLI=false;;
+    * ) CREATE_CLI=true;;
+esac
 
 # Development tools
-read -p "Install development tools? (y/N): " -n 1 -r
-while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    INSTALL_DEV=true
-else
-    INSTALL_DEV=false
-fi
+read -r -p "Install development tools? (y/N): " response
+case "$response" in
+    [Yy]* ) INSTALL_DEV=true;;
+    * ) INSTALL_DEV=false;;
+esac
 
 # ═══════════════════════════════════════════════════════════════════════
 # SYSTEM DEPENDENCIES
@@ -205,12 +196,11 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
                 print_error "Failed to install system dependencies"
                 print_warning "You may need to install them manually:"
                 echo "  ${BOLD}sudo apt update && sudo apt install $MISSING_PACKAGES${NC}"
-                read -p "Continue anyway? (y/N): " -n 1 -r
-                while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
-                echo
-                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                    exit 1
-                fi
+                read -r -p "Continue anyway? (y/N): " response
+                case "$response" in
+                    [Yy]* ) ;;
+                    * ) exit 1;;
+                esac
             fi
         else
             print_success "All required system packages are already installed"
@@ -250,12 +240,11 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$INSTALL_DEPS" == true ]]; then
         echo "  - Qt6 development libraries"
         echo "  - OpenGL/EGL development libraries"
         echo ""
-        read -p "Continue with installation? (y/N): " -n 1 -r
-        while read -r -t 0.1; do :; done < /dev/tty 2>/dev/null  # Flush remaining input
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+        read -r -p "Continue with installation? (y/N): " response
+        case "$response" in
+            [Yy]* ) ;;
+            * ) exit 1;;
+        esac
     fi
 else
     if [[ "$INSTALL_DEPS" == false ]]; then
@@ -575,21 +564,23 @@ echo "════════════════════════�
 echo ""
 
 # Launch option
-read -p "Would you like to launch ApplerGUI now? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_status "Launching ApplerGUI..."
-    
-    if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
-        "$CLI_SCRIPT" &
-    else
-        cd "$INSTALL_DIR" && source venv/bin/activate && python -m applergui &
-    fi
-    
-    print_success "ApplerGUI launched! Check your desktop for the application window."
-else
-    print_status "ApplerGUI is ready to use. Launch it whenever you're ready!"
-fi
+read -r -p "Would you like to launch ApplerGUI now? (y/N): " response
+case "$response" in
+    [Yy]* ) 
+        print_status "Launching ApplerGUI..."
+        
+        if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
+            "$CLI_SCRIPT" &
+        else
+            cd "$INSTALL_DIR" && source venv/bin/activate && python -m applergui &
+        fi
+        
+        print_success "ApplerGUI launched! Check your desktop for the application window."
+        ;;
+    * ) 
+        print_status "ApplerGUI is ready to use. Launch it whenever you're ready!"
+        ;;
+esac
 
 echo ""
 print_success "Thank you for installing ApplerGUI! Enjoy controlling your Apple devices! 🍎"
