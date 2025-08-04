@@ -817,7 +817,9 @@ print_section "INSTALLATION VERIFICATION"
 progress "Verifying installation..."
 
 # Test if applergui module can be imported
-if python -c "import applergui; end_progress & print('✅ ApplerGUI module imported successfully')" 2>/dev/null; then
+if python -c import applergui &>/dev/null; then
+    end_process
+    print_success "✅ ApplerGUI module imported successfully"
     print_success "✅ Installation complete!"
     
     if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
