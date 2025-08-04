@@ -106,19 +106,36 @@ print_progress() {
 }
 
 # Enhanced spinner animation function
+# spin() {
+#    local pid=$!
+#    local delay=0.1
+#    local spinstr='▱▱▱▱''▰▱▱▱''▰▰▱▱''▰▰▰▱''▰▰▰▰''▱▰▰▰''▱▱▰▰''▱▱▱▰'
+#    while [ "$(ps a | awk '{print $4}' | grep $pid)" ]; do
+#        local temp=${spinstr#?}
+#        printf " [%c]  " "$spinstr"
+#        local spinstr=$temp${spinstr%"$temp"}
+#        sleep $delay
+#        printf "\b\b\b\b\b\b"
+#    done
+#    printf "    \b\b\b\b"
+#}
 spin() {
     local pid=$!
     local delay=0.1
-    local spinstr='▱▱▱▱''▰▱▱▱''▰▰▱▱''▰▰▰▱''▰▰▰▰''▱▰▰▰''▱▱▰▰''▱▱▱▰'
-    while [ "$(ps a | awk '{print $4}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
+    local frames=("▱▱▱▱" "▰▱▱▱" "▰▰▱▱" "▰▰▰▱" "▰▰▰▰" "▱▰▰▰" "▱▱▰▰" "▱▱▱▰")
+    local num_frames=${#frames[@]}
+    local i=0
+
+    tput civis  # hide cursor
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r[%s]  " "${frames[i]}"
+        i=$(( (i + 1) % num_frames ))
         sleep $delay
-        printf "\b\b\b\b\b\b"
     done
-    printf "    \b\b\b\b"
+    printf "\r      \r"
+    tput cnorm  # show cursor
 }
+
 
 # Professional input handling function
 ask_yn() {
