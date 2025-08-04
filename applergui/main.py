@@ -42,7 +42,6 @@ class ApplerGUIApp:
         from PyQt6.QtWidgets import QApplication
         from PyQt6.QtCore import QCoreApplication
         from PyQt6.QtGui import QIcon
-        from .backend.config_manager import ConfigManager
         
         # Set application properties
         QCoreApplication.setApplicationName("ApplerGUI")
@@ -66,12 +65,18 @@ class ApplerGUIApp:
     
     def setup_backend(self):
         """Set up backend components."""
+        from .backend.config_manager import ConfigManager
+        from .backend.device_controller import DeviceController
+        from .backend.pairing_manager import PairingManager
+        
         self.config_manager = ConfigManager()
         self.device_controller = DeviceController(self.config_manager)
         self.pairing_manager = PairingManager(self.config_manager)
     
     def setup_ui(self):
         """Set up the main window and UI."""
+        from .ui.main_window import ResponsiveMainWindow
+        
         self.main_window = ResponsiveMainWindow(
             self.config_manager,
             self.device_controller,
@@ -210,9 +215,6 @@ def launch_gui():
     QLoggingCategory.setFilterRules("*=false")
 
     from .ui.main_window import ResponsiveMainWindow
-    from .backend.config_manager import ConfigManager
-    from .backend.device_controller import DeviceController
-    from .backend.pairing_manager import PairingManager
     
     # Create and set up the application
     app = ApplerGUIApp()
