@@ -164,7 +164,7 @@ ask_yn() {
         fi
         
         # Read from /dev/tty for proper input handling even in piped scenarios
-        read -r response < /dev/tty
+#        read -r response < /dev/tty
         
         case "$response" in
             [Yy]|[Yy][Ee][Ss])
@@ -245,13 +245,13 @@ if pgrep -f "applergui" > /dev/null; then
     print_status "The application needs to be stopped for a safe update."
     if ask_yn "Stop ApplerGUI to proceed with update?" "y"; then
         progress "Stopping ApplerGUI processes..."
-        pkill -f "applergui" || true
+        pkill -f "applergui" &> /dev/null || true
         sleep 2
         
         # Verify processes are stopped
         if pgrep -f "applergui" > /dev/null; then
             print_warning "Some processes are still running, forcing termination..."
-            pkill -9 -f "applergui" || true
+            pkill -9 -f "applergui" &> /dev/null || true
             sleep 1
         fi
         
@@ -377,7 +377,7 @@ case $INSTALL_METHOD in
         end_progress
         print_status "Updating virtual environment installation..."
         progress "Updating ApplerGUI to the latest version..."
-        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null; then
+        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git &> /dev/null; then
             print_success "Update completed successfully!"
         else
             print_error "Update failed!"
