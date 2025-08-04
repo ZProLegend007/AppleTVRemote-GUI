@@ -564,6 +564,11 @@ sleep 1
 clear
 print_section "INSTALLATION SUMMARY"
 
+# Standard installation paths
+INSTALL_DIR="$HOME/.local/share/applergui"
+BIN_DIR="$HOME/.local/bin"
+CLI_SCRIPT="$BIN_DIR/applergui"
+
 print_status "📋 Installation Summary:"
 echo ""
 echo -e "  🖥️  ${BOLD}System:${NC} $OS_NAME $OS_VERSION ($ARCH)"
@@ -609,11 +614,6 @@ sleep 1
 
 clear
 print_section "INSTALLATION SETUP"
-
-# Standard installation paths
-INSTALL_DIR="$HOME/.local/share/applergui"
-BIN_DIR="$HOME/.local/bin"
-CLI_SCRIPT="$BIN_DIR/applergui"
 
 print_status "Setting up installation directories..."
 echo -e "  📁 Install directory: ${BOLD}$INSTALL_DIR${NC}"
@@ -698,7 +698,7 @@ else
     INSTALL_CMD="pip install git+https://github.com/ZProLegend007/ApplerGUI.git"
 fi
 
-if eval $INSTALL_CMD &> /dev/null; then
+if eval $INSTALL_CMD &> /dev/null & spin; then
     print_success "ApplerGUI installed successfully!"
 else
     print_error "Installation failed!"
