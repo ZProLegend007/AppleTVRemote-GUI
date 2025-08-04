@@ -16,7 +16,7 @@ echo "██╔══██║██╔═══╝ ██╔═══╝ ██
 echo "██║  ██║██║     ██║     ███████╗███████╗██║  ██║╚██████╔╝╚██████╔╝██║"
 echo "╚═╝  ╚═╝╚═╝     ╚═╝     ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝"
 echo ""
-echo "             🍎 Professional Linux Installer v1.0 🍎"
+echo "                 🍎 ApplerGUI Advanced Installer 🍎"
 echo ""
 echo "════════════════════════════════════════════════════════════════════════"
 echo "  Control Apple TV and HomePod devices from your Linux desktop"
@@ -40,7 +40,7 @@ add_warning() {
     WARNINGS+=("$1")
 }
 
-sleep 3
+sleep 2
 
 # Enhanced error handling and cleanup
 cleanup() {
@@ -78,27 +78,27 @@ trap 'echo ""; print_warning "Installation interrupted by user"; exit 130' INT T
 # Professional status functions
 print_section() {
     echo ""
-    echo -e "${BOLD}${BLUE}╔═══════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}${BLUE}║${NC} ${WHITE}${1}${NC}${BOLD}${BLUE}                                  ║${NC}"
-    echo -e "${BOLD}${BLUE}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BOLD}${BLUE}═════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e " ${WHITE}${1}${NC}"
+    echo -e "${BOLD}${BLUE}═════════════════════════════════════════════════════════════════════════${NC}"
     echo ""
 }
 
 print_status() {
-    echo -e "${CYAN}[INFO]${NC} $1"
+    echo -e "${CYAN}[   INFO   ]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[✓ SUCCESS]${NC} $1"
+    echo -e "${GREEN}[✓ SUCCESS ]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[⚠ WARNING]${NC} $1"
+    echo -e "${YELLOW}[⚠ WARNING ]${NC} $1"
     add_warning "$1"
 }
 
 print_error() {
-    echo -e "${RED}[✗ ERROR]${NC} $1"
+    echo -e "${RED}[✗  ERROR  ]${NC} $1"
 }
 
 print_progress() {
@@ -139,10 +139,10 @@ ask_yn() {
         read -r response < /dev/tty
         
         case "$response" in
-            [Yy]|[Yy][Ee][Ss])
+            [Yy]|[Yy][Ee][Ss]|[1])
                 return 0
                 ;;
-            [Nn]|[Nn][Oo])
+            [Nn]|[Nn][Oo]|[2])
                 return 1
                 ;;
             "")
@@ -201,6 +201,7 @@ detect_system() {
     fi
     
     print_success "System detected: $OS_NAME $OS_VERSION ($ARCH)"
+    print_status "Package manager: $PKG_MANAGER"
 }
 
 # Smart sudo handling with fallbacks
@@ -255,7 +256,7 @@ check_internet() {
     print_error "No internet connectivity detected"
     return 1
 }
-print_status "Package manager: $PKG_MANAGER"
+
 # Check for existing installation and offer update
 check_existing_installation() {
     local install_dir="$HOME/.local/share/applergui"
@@ -269,7 +270,7 @@ check_existing_installation() {
         echo "  2. Fresh installation (removes current installation)"
         echo ""
         
-        if ask_yn "Update the existing installation?" "y"; then
+        if ask_yn "Choose your option:" "y"; then
             print_status "Redirecting to update process..."
             print_status "Downloading and running updater..."
             
@@ -285,7 +286,8 @@ check_existing_installation() {
             fi
             exit 0
         else
-            print_warning "Proceeding with fresh installation..."
+            print_section "Fresh ApplerGUI Installation"
+            print_status "Proceeding with fresh installation..."
             print_progress "Backing up existing installation..."
             
             local backup_dir="$install_dir.backup.$(date +%Y%m%d_%H%M%S)"
@@ -352,16 +354,16 @@ check_existing_installation
 # Check Python version
 print_progress "Checking Python installation..."
 if ! command -v python3 &> /dev/null; then
-    print_error "Python 3 is required but not installed!"
+    print_warning "Python 3 is required but not installed!"
     echo ""
-    print_status "Install Python 3.8+ with your package manager:"
+    print_status "Attempting Python install with your package manager..."
     case "$PKG_MANAGER" in
-        apt)    echo -e "  ${BOLD}sudo apt install python3 python3-pip python3-venv${NC}" ;;
-        dnf)    echo -e "  ${BOLD}sudo dnf install python3 python3-pip${NC}" ;;
-        yum)    echo -e "  ${BOLD}sudo yum install python3 python3-pip${NC}" ;;
-        pacman) echo -e "  ${BOLD}sudo pacman -S python python-pip${NC}" ;;
-        zypper) echo -e "  ${BOLD}sudo zypper install python3 python3-pip${NC}" ;;
-        *)      echo "  Please install Python 3.8+ and pip using your system's package manager" ;;
+        apt)    sudo apt install python3 python3-pip python3-venv ;;
+        dnf)    sudo dnf install python3 python3-pip ;;
+        yum)    sudo yum install python3 python3-pip ;;
+        pacman) sudo pacman -S python python-pip ;;
+        zypper) sudo zypper install python3 python3-pip ;;
+        *)      echo "  Error: Please install Python 3.8+ and pip using your system's package manager" ;;
     esac
     exit 1
 fi
@@ -381,14 +383,14 @@ fi
 # Check pip
 print_progress "Checking pip installation..."
 if ! command -v pip3 &> /dev/null; then
-    print_error "pip3 is required but not installed!"
+    print_error "Installing pip3 using your system's packet manager..."
     case "$PKG_MANAGER" in
-        apt)    print_status "Install with: ${BOLD}sudo apt install python3-pip${NC}" ;;
-        dnf)    print_status "Install with: ${BOLD}sudo dnf install python3-pip${NC}" ;;
-        yum)    print_status "Install with: ${BOLD}sudo yum install python3-pip${NC}" ;;
-        pacman) print_status "Install with: ${BOLD}sudo pacman -S python-pip${NC}" ;;
-        zypper) print_status "Install with: ${BOLD}sudo zypper install python3-pip${NC}" ;;
-        *)      print_status "Please install pip3 using your system's package manager" ;;
+        apt)    sudo apt install python3-pip ;;
+        dnf)    sudo dnf install python3-pip ;;
+        yum)    sudo yum install python3-pip ;;
+        pacman) sudo pacman -S python-pip ;;
+        zypper) sudo zypper install python3-pip ;;
+        *)      print_status "Error: Please install pip3 using your system's package manager" ;;
     esac
     exit 1
 fi
