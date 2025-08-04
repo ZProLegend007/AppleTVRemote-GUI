@@ -250,6 +250,53 @@ check_internet() {
     return 1
 }
 
+# Check for existing installation and offer update
+check_existing_installation() {
+    local install_dir="$HOME/.local/share/applergui"
+    
+    if [ -d "$install_dir" ]; then
+        print_warning "Existing ApplerGUI installation detected at: $install_dir"
+        echo ""
+        print_status "You have two options:"
+        echo "  1. Update existing installation (recommended)"
+        echo "  2. Fresh installation (removes current installation)"
+        echo ""
+        
+        if ask_yn "Would you like to update the existing installation instead?" "y"; then
+            print_status "Redirecting to update process..."
+            print_status "Downloading and running updater..."
+            
+            if command -v curl &> /dev/null; then
+                curl -sSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh | bash
+            elif command -v wget &> /dev/null; then
+                wget -qO- https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh | bash
+            else
+                print_error "Neither curl nor wget available for downloading updater"
+                print_status "Please install curl or wget, or remove existing installation:"
+                echo "  ${BOLD}rm -rf $install_dir${NC}"
+                exit 1
+            fi
+            exit 0
+        else
+            print_warning "Proceeding with fresh installation..."
+            print_progress "Backing up existing installation..."
+            
+            local backup_dir="$install_dir.backup.$(date +%Y%m%d_%H%M%S)"
+            if mv "$install_dir" "$backup_dir" 2>/dev/null; then
+                print_success "Existing installation backed up to: $backup_dir"
+            else
+                print_warning "Could not backup existing installation"
+                if ask_yn "Remove existing installation anyway?" "n"; then
+                    rm -rf "$install_dir" 2>/dev/null || true
+                else
+                    print_error "Cannot proceed with existing installation in place"
+                    exit 1
+                fi
+            fi
+        fi
+    fi
+}
+
 # ═══════════════════════════════════════════════════════════════════════
 # SECURITY CHECK
 # ═══════════════════════════════════════════════════════════════════════
@@ -291,6 +338,9 @@ if ! check_internet; then
         exit 1
     fi
 fi
+
+# Check for existing installation
+check_existing_installation
 
 # Check Python version
 print_progress "Checking Python installation..."
