@@ -647,8 +647,9 @@ if ! ask_yn "Proceed with installation?" "y"; then
 fi
 
 print_success "Installation confirmed - proceeding..."
+progress
 sleep 1
-
+end_progress
 # ═══════════════════════════════════════════════════════════════════════
 # INSTALLATION SETUP
 # ═══════════════════════════════════════════════════════════════════════
@@ -853,7 +854,8 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ "$CREATE_DESKTOP" == true ]]; then
     mkdir -p "$ICON_DIR"
     
     # Create desktop entry
-    print_status "Creating desktop entry..."
+    end_progress
+    progress "Creating desktop entry..."
     
     # Use our CLI script if created, otherwise fallback to python module
     if [[ "$CREATE_CLI" == true ]] && [ -f "$CLI_SCRIPT" ]; then
@@ -887,7 +889,7 @@ EOF
     
     # Create a simple icon if none exists
     if ! [ -f "$ICON_DIR/applergui.png" ]; then
-        print_status "Creating application icon..."
+        progress "Creating application icon..."
         # This would normally download or copy an icon file
         # For now, we'll note that an icon should be added
         print_warning "Icon should be placed at: $ICON_DIR/applergui.png"
