@@ -81,6 +81,7 @@ get_git_commit() {
     fi
 }
 
+
 # Function to get latest commit hash from GitHub
 get_latest_commit() {
     curl -s "https://api.github.com/repos/ZProLegend007/ApplerGUI/commits/main" | \
@@ -92,8 +93,7 @@ main() {
     clear
     print_header "APPLERGUI UPDATE SYSTEM"
     
-    echo -e "🔄 ${BOLD}ApplerGUI Updater${NC} - Git-based update system"
-    echo -e "Press ${BOLD}Ctrl+C${NC} anytime to safely cancel the update"
+    echo -e "🔄 ${BOLD}ApplerGUI Updater${NC}"
     echo ""
     
     # Check if ApplerGUI is installed
@@ -103,6 +103,119 @@ main() {
         echo ""
         print_status "Please install ApplerGUI first using:"
         echo -e "  ${BOLD}curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash${NC}"
+        
+# Professional input handling function (from installer)
+ask_yn() {
+    local prompt="$1"
+    local default="$2"
+    local response
+    
+    while true; do
+        if [ "$default" = "y" ]; then
+            echo -n "${prompt} (Y/n): "
+        elif [ "$default" = "n" ]; then
+            echo -n "${prompt} (y/N): "
+        else
+            echo -n "${prompt} (y/n): "
+        fi
+        
+        # Read from /dev/tty for proper input handling even in piped scenarios
+#        read -r response < /dev/tty
+        
+        case "$response" in
+            [Yy]|[Yy][Ee][Ss])
+                return 0
+                ;;
+            [Nn]|[Nn][Oo])
+                return 1
+                ;;
+            "")
+                # Empty response - use default
+                if [ "$default" = "y" ]; then
+                    return 0
+                elif [ "$default" = "n" ]; then
+                    return 1
+                else
+                    echo "Please answer yes or no."
+                    continue
+                fi
+                ;;
+            *)
+                echo "Please answer yes or no."
+                ;;
+        esac
+    done
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# INSTALLATION VERIFICATION
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "CHECKING CURRENT INSTALLATION"
+
+# Check if ApplerGUI is already installed
+progress "Verifying ApplerGUI installation..."
+if ! python3 -c "import applergui" &>/dev/null; then
+    print_error "ApplerGUI is not installed on this system!"
+    echo ""
+    print_status "Please install ApplerGUI first using our installer:"
+    echo -e "  ${BOLD}curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash${NC}"
+    echo ""
+    exit 1
+fi
+
+print_success "ApplerGUI installation found"
+
+# Get current version
+progress "Checking current version..."
+CURRENT_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
+print_success "Current version: ${BOLD}$CURRENT_VERSION${NC}"
+
+# Check if running as root
+if [[ $EUID -eq 0 ]]; then
+    print_error "This updater should not be run as root for security reasons!"
+    print_status "Please run as your regular user: ${BOLD}bash update.sh${NC}"
+    echo ""
+    print_warning "Running as root could compromise your system security."
+    exit 1
+fi
+
+print_success "Security check passed - running as regular user"
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# PROCESS MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "PROCESS MANAGEMENT"
+
+# Stop ApplerGUI if it's running
+progress "Checking for running ApplerGUI processes..."
+if pgrep -f "applergui" > /dev/null; then
+    print_warning "ApplerGUI is currently running"
+    echo ""
+    print_status "The application needs to be stopped for a safe update."
+    if ask_yn "Stop ApplerGUI to proceed with update?" "y"; then
+        progress "Stopping ApplerGUI processes..."
+        pkill -f "applergui" &> /dev/null || true
+        sleep 2
+        
+        # Verify processes are stopped
+        if pgrep -f "applergui" > /dev/null; then
+            print_warning "Some processes are still running, forcing termination..."
+            pkill -9 -f "applergui" &> /dev/null || true
+            sleep 1
+        fi
+        
+        print_success "ApplerGUI processes stopped"
+    else
+        print_error "Cannot update while ApplerGUI is running"
+        print_status "Please close ApplerGUI manually and run the updater again."
+        main
         exit 1
     fi
     print_success "ApplerGUI installation found"
@@ -131,16 +244,16 @@ main() {
         INSTALL_METHOD="system"
         print_success "Found system/user installation"
     fi
+
     
     # Get current commit hash
-    print_status "Checking current version..."
+    progress "Checking for updates..."
     CURRENT_COMMIT="unknown"
     if [ "$INSTALL_METHOD" = "standard" ] && [ -d "$INSTALL_DIR/.git" ]; then
         CURRENT_COMMIT=$(get_git_commit "$INSTALL_DIR")
     fi
     
     # Get latest commit hash from GitHub
-    print_status "Checking for updates..."
     LATEST_COMMIT=$(get_latest_commit)
     
     if [ "$LATEST_COMMIT" = "unknown" ]; then
@@ -153,7 +266,99 @@ main() {
         exit 0
     else
         if [ "$CURRENT_COMMIT" != "unknown" ]; then
-            print_status "Update available: ${CURRENT_COMMIT:0:8} -> ${LATEST_COMMIT:0:8}"
+            print_success "Update available: ${CURRENT_COMMIT:0:8} -> ${LATEST_COMMIT:0:8}"
+
+else
+    end_progress
+    print_status "No existing configuration found - no backup needed"
+fi
+
+# Detect installation method and paths
+INSTALL_DIR="$HOME/.local/share/applergui"
+VENV_PATH="$INSTALL_DIR/venv"
+CLI_SCRIPT="$HOME/.local/bin/applergui"
+
+progress "Checking installation paths..."
+if [ -d "$INSTALL_DIR" ] && [ -d "$VENV_PATH" ]; then
+    print_success "Found ApplerGUI installation at: ${BOLD}$INSTALL_DIR${NC}"
+    INSTALL_METHOD="standard"
+elif [[ -n "$VIRTUAL_ENV" ]]; then
+    print_success "Virtual environment detected: ${BOLD}$VIRTUAL_ENV${NC}"
+    VENV_PATH="$VIRTUAL_ENV"
+    INSTALL_METHOD="venv"
+elif command -v applergui &> /dev/null; then
+    INSTALL_METHOD="system"
+    print_success "System installation detected"
+else
+    print_error "Could not determine installation method"
+    print_status "ApplerGUI may be installed but not properly configured"
+    exit 1
+fi
+
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# INSTALLATION METHOD DETECTION
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "INSTALLATION METHOD DETECTION"
+
+progress "Analyzing current installation..."
+
+# Activate virtual environment for standard installation
+if [[ "$INSTALL_METHOD" == "standard" ]]; then
+    end_progress
+    print_status "Activating virtual environment for update..."
+    progress "Analyzing current installation..."
+    source "$VENV_PATH/bin/activate"
+    print_success "Virtual environment activated"
+elif [[ "$INSTALL_METHOD" == "venv" ]]; then
+    print_success "Already in virtual environment"
+fi
+
+print_success "Installation method: ${BOLD}$INSTALL_METHOD${NC}"
+
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# DEPENDENCY UPDATE
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "DEPENDENCY UPDATE"
+
+# Update pip first
+progress "Ensuring pip is up to date..."
+python -m pip install --upgrade pip &> /dev/null
+print_success "pip updated successfully"
+
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# APPLERGUI UPDATE
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "APPLERGUI UPDATE"
+
+print_status "This may take a few minutes depending on your internet connection..."
+progress "Updating ApplerGUI to the latest version..."
+
+case $INSTALL_METHOD in
+    "standard"|"venv")
+        end_progress
+        print_status "Updating virtual environment installation..."
+        progress "Updating ApplerGUI to the latest version..."
+        if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git &> /dev/null; then
+            print_success "Update completed successfully!"
+        main
         else
             print_status "Update available (current version unknown)"
         fi
@@ -175,6 +380,28 @@ main() {
     else
         print_success "No running processes found"
     fi
+
+
+fi
+
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# POST-UPDATE VERIFICATION
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "POST-UPDATE VERIFICATION"
+
+# Check if the command is available
+progress "Verifying executable availability..."
+
+if python -c "import applergui" &>/dev/null; then
+    print_success "✅ ApplerGUI module imported successfully"
+    print_success "✅ Update complete!"
+    main
     
     # Activate virtual environment if needed
     if [[ "$INSTALL_METHOD" == "standard" ]]; then
