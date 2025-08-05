@@ -179,9 +179,25 @@ class ApplerGUIApp:
             await self.cleanup()
 
 def handle_update():
-    """Handle the --update command."""
+    """Handle the --update command with proper process management and signal handling."""
     print("🔄 Starting ApplerGUI update...")
     temp_script = None
+    
+    # Set up clean signal handling for Ctrl-C
+    def signal_handler(sig, frame):
+        print("\n🛑 Update interrupted by user")
+        print("✅ Cleanup completed. Update cancelled.")
+        # Clean up temp file
+        if temp_script and os.path.exists(temp_script):
+            try:
+                os.unlink(temp_script)
+            except Exception:
+                pass
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     try:
         # Try to download and run the update script
         update_url = "https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh"
@@ -195,17 +211,32 @@ def handle_update():
             # Make the script executable
             os.chmod(temp_script, 0o755)
             
-            # Run the update script directly (preserves signal handling)
-            result = subprocess.run(['bash', temp_script])
-            if result.returncode == 0:
-                print("✅ Update completed successfully!")
-            else:
-                print("❌ Update failed!")
-                sys.exit(1)
+            # Set environment variables to help the update script identify the context
+            env = os.environ.copy()
+            env['APPLERGUI_UPDATE_MODE'] = '1'
+            env['APPLERGUI_PARENT_PID'] = str(os.getpid())
+            
+            # Run the update script with proper signal handling
+            # Use exec to replace current process to avoid parent detection issues
+            try:
+                os.execve('/bin/bash', ['bash', temp_script], env)
+            except OSError:
+                # Fallback to subprocess if exec fails
+                result = subprocess.run(['bash', temp_script], env=env)
+                if result.returncode == 0:
+                    print("✅ Update completed successfully!")
+                else:
+                    print("❌ Update failed!")
+                    sys.exit(1)
         else:
             print("❌ Failed to download update script!")
             print("💡 Please check your internet connection and try again.")
             sys.exit(1)
+    except KeyboardInterrupt:
+        # Handle Ctrl-C gracefully - should not reach here due to signal handler
+        print("\n🛑 Update interrupted by user")
+        print("✅ Update cancelled.")
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Update failed: {e}")
         sys.exit(1)
@@ -241,7 +272,7 @@ def launch_gui():
     # Import GUI components only when needed
     try:
         from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import QCoreApplication, QLoggingCategory
+        from PyQt6.QtCore import QCoreApplication, QLoggingCategory, QTimer
         from PyQt6.QtGui import QPixmap, QIcon
         import qasync
     except ImportError as e:
@@ -258,25 +289,34 @@ def launch_gui():
     app = ApplerGUIApp()
     app.setup_application()
     app.setup_backend()
-    app.setup_ui()
     app.setup_signal_handlers()
     
-    # Run the application with async support
-    with qasync.QEventLoop(app.app) as loop:
-        # Store the loop instance in the app
-        app.event_loop = loop
-        # Set up device controller now that event loop is ready
-        app.setup_device_controller()
-        # Update the main window's device controller reference
-        app.main_window.device_controller = app.device_controller
-        # Use a QTimer to delay initialization until after the Qt event loop is running
-        from PyQt6.QtCore import QTimer
-        init_timer = QTimer()
-        init_timer.timeout.connect(lambda: loop.create_task(app.run()))
-        init_timer.setSingleShot(True)
-        init_timer.start(100)  # Reduced delay since device controller is now properly initialized
-        # Use exec() instead of run_forever() - this is the proper Qt way
-        app.app.exec()
+    # Initialize async event loop integration
+    loop = qasync.QEventLoop(app.app)
+    asyncio.set_event_loop(loop)
+    app.event_loop = loop
+    
+    # Set up device controller with event loop
+    app.setup_device_controller()
+    
+    # Set up UI after backend is ready
+    app.setup_ui()
+    
+    # Start the Qt application
+    try:
+        # Run the Qt application with the async event loop
+        with loop:
+            # Delay initialization to avoid startup race conditions
+            init_timer = QTimer()
+            init_timer.timeout.connect(lambda: loop.create_task(app.run()))
+            init_timer.setSingleShot(True)
+            init_timer.start(250)  # Increased delay for stability
+            
+            # Run the application
+            loop.run_until_complete(app.app.exec())
+    except Exception as e:
+        print(f"❌ Application error: {e}")
+        sys.exit(1)
 
 def main():
     """Main entry point."""
