@@ -448,7 +448,6 @@ if python -c "import applergui" &>/dev/null; then
     fi
     echo ""
     print_success "Update completed! Enjoy the latest features! 🍎"
-}
 
 # Run main function
 main "$@"
