@@ -139,9 +139,25 @@ progress() {
         )
         local num_frames=${#frames[@]}
         local i=0
-        tput civis
+        tput civis 2>/dev/null || true
+        
+        # Get terminal width, default to 80 if not available
+        local term_width
+        term_width=$(tput cols 2>/dev/null || echo "80")
+        
         while true; do
-            printf "\r${WHITE}"${frames[i]}"${NC} %s  " "$message"
+            # Calculate available space for message (terminal width - frame width - padding)
+            local frame_width=12  # Length of frame like "[▰▰▰▰▰▰▰▰▰▰]"
+            local padding=3       # Space for padding
+            local max_msg_length=$((term_width - frame_width - padding))
+            
+            # Truncate message if it's too long
+            local display_message="$message"
+            if [ ${#display_message} -gt $max_msg_length ]; then
+                display_message="${display_message:0:$((max_msg_length - 3))}..."
+            fi
+            
+            printf "\r${WHITE}%s${NC} %s  " "${frames[i]}" "$display_message"
             i=$(( (i + 1) % num_frames ))
             sleep $delay
         done
@@ -155,8 +171,11 @@ end_progress() {
         kill "$__progress_pid" 2>/dev/null
         wait "$__progress_pid" 2>/dev/null
         __progress_pid=
-        tput cnorm
-        printf "\r%*s\r" "$(tput cols)" ""  # Clear line
+        tput cnorm 2>/dev/null || true
+        # Clear the entire line properly
+        local term_width
+        term_width=$(tput cols 2>/dev/null || echo "80")
+        printf "\r%*s\r" "$term_width" ""
     fi
 }
 
@@ -745,6 +764,36 @@ fi
 
 if eval $INSTALL_CMD &> /dev/null; then
     print_success "ApplerGUI installed successfully!"
+    
+    # Save current commit hash for version tracking
+    progress "Saving installation commit hash..."
+    LATEST_COMMIT=""
+    
+    if [[ "$INSTALL_METHOD" == "local" ]]; then
+        # For local installation, get commit from current directory
+        if [ -d ".git" ]; then
+            LATEST_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "")
+        fi
+    else
+        # For remote installation, get latest commit from GitHub
+        LATEST_COMMIT=$(curl -s https://api.github.com/repos/ZProLegend007/ApplerGUI/commits/main | python3 -c "
+import sys
+import json
+try:
+    data = json.load(sys.stdin)
+    print(data['sha'])
+except:
+    print('')
+" 2>/dev/null || echo "")
+    fi
+    
+    # Save commit hash to file
+    if [ -n "$LATEST_COMMIT" ] && [ ${#LATEST_COMMIT} -eq 40 ]; then
+        echo "$LATEST_COMMIT" > "$INSTALL_DIR/.commit"
+        print_success "Installation commit saved: ${LATEST_COMMIT:0:8}..."
+    else
+        print_warning "Could not determine installation commit hash"
+    fi
 else
     print_error "Installation failed!"
     echo ""
