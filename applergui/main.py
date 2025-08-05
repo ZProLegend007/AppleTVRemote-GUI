@@ -88,13 +88,10 @@ class ApplerGUIApp:
         """Set up the main window and UI."""
         from .ui.main_window import ResponsiveMainWindow
         
-        # Ensure device controller is initialized before UI setup
-        if self.device_controller is None:
-            self.setup_device_controller()
-        
+        # Device controller will be initialized after event loop is ready
         self.main_window = ResponsiveMainWindow(
             self.config_manager,
-            self.device_controller,
+            self.device_controller,  # Initially None, will be set later
             self.pairing_manager
         )
         
@@ -270,12 +267,14 @@ def launch_gui():
         app.event_loop = loop
         # Set up device controller now that event loop is ready
         app.setup_device_controller()
+        # Update the main window's device controller reference
+        app.main_window.device_controller = app.device_controller
         # Use a QTimer to delay initialization until after the Qt event loop is running
         from PyQt6.QtCore import QTimer
         init_timer = QTimer()
         init_timer.timeout.connect(lambda: loop.create_task(app.run()))
         init_timer.setSingleShot(True)
-        init_timer.start(500)  # Start after 500ms for more stable initialization
+        init_timer.start(100)  # Reduced delay since device controller is now properly initialized
         # Use exec() instead of run_forever() - this is the proper Qt way
         app.app.exec()
 
