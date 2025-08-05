@@ -45,8 +45,13 @@ class DeviceController(QObject):
             self.discovery_started.emit()
             self.discovery_progress.emit("Starting Apple TV discovery...")
             
-            # Scan for devices - use the stored event loop or fall back to current
-            loop = self.event_loop if self.event_loop else asyncio.get_event_loop()
+            # Use the stored event loop, ensuring it's properly set
+            if self.event_loop is None:
+                self.discovery_progress.emit("Event loop not ready, using current loop")
+                loop = asyncio.get_running_loop()
+            else:
+                loop = self.event_loop
+                
             atvs = await pyatv.scan(loop, timeout=timeout)
             
             if not atvs:
@@ -134,8 +139,11 @@ class DeviceController(QObject):
                     if service_name in credentials:
                         service.credentials = credentials[service_name]
             
-            # Connect to device - use the stored event loop or fall back to current
-            loop = self.event_loop if self.event_loop else asyncio.get_event_loop()
+            # Connect to device - use the stored event loop, ensuring it's properly set
+            if self.event_loop is None:
+                loop = asyncio.get_running_loop()
+            else:
+                loop = self.event_loop
             atv = await pyatv.connect(config, loop)
             
             # Store connection

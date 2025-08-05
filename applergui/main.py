@@ -75,12 +75,22 @@ class ApplerGUIApp:
         from .backend.pairing_manager import PairingManager
         
         self.config_manager = ConfigManager()
-        self.device_controller = DeviceController(self.config_manager, self.event_loop)
+        # DeviceController will be initialized later after event loop is set up
+        self.device_controller = None
         self.pairing_manager = PairingManager(self.config_manager)
+    
+    def setup_device_controller(self):
+        """Set up device controller after event loop is ready."""
+        from .backend.device_controller import DeviceController
+        self.device_controller = DeviceController(self.config_manager, self.event_loop)
     
     def setup_ui(self):
         """Set up the main window and UI."""
         from .ui.main_window import ResponsiveMainWindow
+        
+        # Ensure device controller is initialized before UI setup
+        if self.device_controller is None:
+            self.setup_device_controller()
         
         self.main_window = ResponsiveMainWindow(
             self.config_manager,
@@ -258,6 +268,8 @@ def launch_gui():
     with qasync.QEventLoop(app.app) as loop:
         # Store the loop instance in the app
         app.event_loop = loop
+        # Set up device controller now that event loop is ready
+        app.setup_device_controller()
         # Use a QTimer to delay initialization until after the Qt event loop is running
         from PyQt6.QtCore import QTimer
         init_timer = QTimer()
