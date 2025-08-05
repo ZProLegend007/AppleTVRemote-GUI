@@ -211,10 +211,136 @@ fi
 
 print_success "ApplerGUI installation found"
 
-# Get current version
-progress "Checking current version..."
-CURRENT_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
-print_success "Current version: ${BOLD}$CURRENT_VERSION${NC}"
+# ═══════════════════════════════════════════════════════════════════════
+# VERSION AND UPDATE CHECKING
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "CHECKING FOR UPDATES"
+
+# Get current commit hash
+progress "Checking current installation commit..."
+CURRENT_COMMIT=""
+INSTALL_DIR="$HOME/.local/share/applergui"
+
+# Try to get current commit from installation directory
+if [ -d "$INSTALL_DIR/.git" ]; then
+    CURRENT_COMMIT=$(cd "$INSTALL_DIR" && git rev-parse HEAD 2>/dev/null || echo "unknown")
+elif command -v python3 >/dev/null 2>&1; then
+    # Try to get commit from installed package (if available)
+    CURRENT_COMMIT=$(python3 -c "
+try:
+    import applergui
+    import os
+    package_dir = os.path.dirname(applergui.__file__)
+    git_dir = os.path.join(package_dir, '..', '.git')
+    if os.path.exists(git_dir):
+        import subprocess
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
+                              cwd=os.path.dirname(git_dir), 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            print(result.stdout.strip())
+        else:
+            print('unknown')
+    else:
+        print('unknown')
+except:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+fi
+
+if [ "$CURRENT_COMMIT" = "unknown" ] || [ -z "$CURRENT_COMMIT" ]; then
+    print_warning "Cannot determine current commit hash"
+    print_status "Current version: ${BOLD}$CURRENT_VERSION${NC} (commit unknown)"
+    print_status "Will proceed with update to ensure latest version"
+    FORCE_UPDATE=true
+else
+    print_success "Current commit: ${BOLD}${CURRENT_COMMIT:0:8}...${NC}"
+    FORCE_UPDATE=false
+fi
+
+# Get latest commit from GitHub
+progress "Checking latest commit from GitHub..."
+
+# Try multiple methods to get the latest commit
+LATEST_COMMIT=""
+
+# Method 1: GitHub API
+if [ -z "$LATEST_COMMIT" ]; then
+    LATEST_COMMIT=$(curl -s --connect-timeout 10 "https://api.github.com/repos/ZProLegend007/ApplerGUI/commits/main" | \
+                    python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data['sha'])
+except:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+fi
+
+# Method 2: Raw GitHub if API fails
+if [ "$LATEST_COMMIT" = "unknown" ] || [ -z "$LATEST_COMMIT" ]; then
+    print_warning "GitHub API unavailable, trying alternative method..."
+    # Try to get commit from the raw repository
+    LATEST_COMMIT=$(curl -s --connect-timeout 10 "https://github.com/ZProLegend007/ApplerGUI/commit/main.patch" | \
+                    head -1 | grep "^From " | awk '{print $2}' 2>/dev/null || echo "unknown")
+fi
+
+if [ "$LATEST_COMMIT" = "unknown" ] || [ -z "$LATEST_COMMIT" ]; then
+    print_error "Failed to fetch latest commit from GitHub"
+    print_status "This could be due to:"
+    print_status "  - No internet connection"
+    print_status "  - GitHub API rate limiting"
+    print_status "  - Network firewall/proxy blocking GitHub"
+    echo ""
+    
+    # Ask if user wants to force update anyway
+    if ask_yn "Proceed with update anyway? (may re-install same version)" "n"; then
+        print_status "Proceeding with forced update..."
+        FORCE_UPDATE=true
+    else
+        print_status "Update cancelled."
+        exit 1
+    fi
+else
+    print_success "Latest commit: ${BOLD}${LATEST_COMMIT:0:8}...${NC}"
+fi
+
+# Check if update is needed
+if [ "$FORCE_UPDATE" = "true" ]; then
+    print_status "Forcing update due to unknown current version"
+    UPDATE_NEEDED=true
+elif [ "$CURRENT_COMMIT" = "$LATEST_COMMIT" ]; then
+    print_success "Already up to date! No update needed."
+    echo ""
+    print_status "Your ApplerGUI installation is current with the latest commit."
+    print_status "Current commit: ${BOLD}${CURRENT_COMMIT:0:8}...${NC}"
+    
+    if ask_yn "Would you like to reinstall anyway?" "n"; then
+        UPDATE_NEEDED=true
+        print_status "Proceeding with reinstallation..."
+    else
+        print_status "Update cancelled. Your installation is already current."
+        exit 0
+    fi
+else
+    UPDATE_NEEDED=true
+    print_status "Update available!"
+    print_status "Current: ${BOLD}${CURRENT_COMMIT:0:8}...${NC}"
+    print_status "Latest:  ${BOLD}${LATEST_COMMIT:0:8}...${NC}"
+    echo ""
+    if ask_yn "Proceed with update?" "y"; then
+        print_status "Starting update process..."
+    else
+        print_status "Update cancelled by user."
+        exit 0
+    fi
+fi
+
+progress
+sleep 1
+end_progress
 
 # Check if running as root
 if [[ $EUID -eq 0 ]]; then
@@ -410,16 +536,53 @@ end_progress
 clear
 print_section "UPDATE VERIFICATION"
 
-# Get new version
+# ═══════════════════════════════════════════════════════════════════════
+# UPDATE VERIFICATION
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "UPDATE VERIFICATION"
+
+# Get new commit hash and version
 progress "Verifying update..."
 NEW_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
+NEW_COMMIT=$(python3 -c "
+try:
+    import applergui
+    import os
+    package_dir = os.path.dirname(applergui.__file__)
+    git_dir = os.path.join(package_dir, '..', '.git')
+    if os.path.exists(git_dir):
+        import subprocess
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
+                              cwd=os.path.dirname(git_dir), 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            print(result.stdout.strip())
+        else:
+            print('unknown')
+    else:
+        print('unknown')
+except:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
 
-if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
+if [ "$NEW_COMMIT" != "unknown" ] && [ "$NEW_COMMIT" != "$CURRENT_COMMIT" ]; then
+    print_success "Successfully updated!"
+    print_status "Previous: ${BOLD}${CURRENT_COMMIT:0:8}...${NC}"
+    print_status "Current:  ${BOLD}${NEW_COMMIT:0:8}...${NC}"
+elif [ "$NEW_COMMIT" = "$CURRENT_COMMIT" ] && [ "$CURRENT_COMMIT" != "unknown" ]; then
+    print_success "Installation verified - already at latest commit: ${BOLD}${NEW_COMMIT:0:8}...${NC}"
+elif [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
     print_success "Successfully updated from ${BOLD}$CURRENT_VERSION${NC} to ${BOLD}$NEW_VERSION${NC}"
-elif [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-    print_success "Already at latest version: ${BOLD}$NEW_VERSION${NC}"
 else
-    print_warning "Version verification inconclusive"
+    print_success "Update completed successfully"
+    if [ "$NEW_COMMIT" != "unknown" ]; then
+        print_status "Current commit: ${BOLD}${NEW_COMMIT:0:8}...${NC}"
+    fi
+    if [ "$NEW_VERSION" != "unknown" ]; then
+        print_status "Current version: ${BOLD}$NEW_VERSION${NC}"
+    fi
 fi
 
 # Clean up backup if update was successful
