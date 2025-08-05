@@ -127,9 +127,25 @@ progress() {
         )
         local num_frames=${#frames[@]}
         local i=0
-        tput civis
+        tput civis 2>/dev/null || true
+        
+        # Get terminal width, default to 80 if not available
+        local term_width
+        term_width=$(tput cols 2>/dev/null || echo "80")
+        
         while true; do
-            printf "\r${WHITE}"${frames[i]}"${NC} %s  " "$message"
+            # Calculate available space for message (terminal width - frame width - padding)
+            local frame_width=12  # Length of frame like "[▰▰▰▰▰▰▰▰▰▰]"
+            local padding=3       # Space for padding
+            local max_msg_length=$((term_width - frame_width - padding))
+            
+            # Truncate message if it's too long
+            local display_message="$message"
+            if [ ${#display_message} -gt $max_msg_length ]; then
+                display_message="${display_message:0:$((max_msg_length - 3))}..."
+            fi
+            
+            printf "\r${WHITE}%s${NC} %s  " "${frames[i]}" "$display_message"
             i=$(( (i + 1) % num_frames ))
             sleep $delay
         done
@@ -143,12 +159,15 @@ end_progress() {
         kill "$__progress_pid" 2>/dev/null
         wait "$__progress_pid" 2>/dev/null
         __progress_pid=
-        tput cnorm
-        printf "\r%*s\r" "$(tput cols)" ""  # Clear line
+        tput cnorm 2>/dev/null || true
+        # Clear the entire line properly
+        local term_width
+        term_width=$(tput cols 2>/dev/null || echo "80")
+        printf "\r%*s\r" "$term_width" ""
     fi
 }
 
-# Professional input handling function (from installer)
+# Enhanced input handling function (from installer)
 ask_yn() {
     local prompt="$1"
     local default="$2"
@@ -164,7 +183,14 @@ ask_yn() {
         fi
         
         # Read from /dev/tty for proper input handling even in piped scenarios
-        read -r response < /dev/tty
+        # Check if we're in ApplerGUI update mode and handle differently
+        if [[ -n "${APPLERGUI_UPDATE_MODE:-}" ]]; then
+            # When called from applergui --update, use stdin directly
+            read -r response
+        else
+            # Normal mode - read from /dev/tty
+            read -r response < /dev/tty
+        fi
         
         case "$response" in
             [Yy]|[Yy][Ee][Ss])
@@ -223,31 +249,45 @@ progress "Checking current installation commit..."
 CURRENT_COMMIT=""
 INSTALL_DIR="$HOME/.local/share/applergui"
 
-# Try to get current commit from installation directory
-if [ -d "$INSTALL_DIR/.git" ]; then
-    CURRENT_COMMIT=$(cd "$INSTALL_DIR" && git rev-parse HEAD 2>/dev/null || echo "unknown")
-elif command -v python3 >/dev/null 2>&1; then
-    # Try to get commit from installed package (if available)
+# Try to get current commit using the new __commit__ attribute first
+if command -v python3 >/dev/null 2>&1; then
     CURRENT_COMMIT=$(python3 -c "
 try:
     import applergui
-    import os
-    package_dir = os.path.dirname(applergui.__file__)
-    git_dir = os.path.join(package_dir, '..', '.git')
-    if os.path.exists(git_dir):
-        import subprocess
-        result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
-                              cwd=os.path.dirname(git_dir), 
-                              capture_output=True, text=True)
-        if result.returncode == 0:
-            print(result.stdout.strip())
-        else:
-            print('unknown')
+    commit = getattr(applergui, '__commit__', 'unknown')
+    if commit and commit != 'unknown':
+        print(commit)
     else:
         print('unknown')
 except:
     print('unknown')
 " 2>/dev/null || echo "unknown")
+fi
+
+# Fallback to git if __commit__ is not available or unknown
+if [ "$CURRENT_COMMIT" = "unknown" ] || [ -z "$CURRENT_COMMIT" ]; then
+    # Try to get current commit from installation directory
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        CURRENT_COMMIT=$(cd "$INSTALL_DIR" && git rev-parse HEAD 2>/dev/null || echo "unknown")
+    elif command -v python3 >/dev/null 2>&1; then
+        # Try to get commit from installed package directory
+        CURRENT_COMMIT=$(python3 -c "
+try:
+    import applergui
+    import os
+    import subprocess
+    package_dir = os.path.dirname(applergui.__file__)
+    result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
+                          cwd=package_dir, 
+                          capture_output=True, text=True, timeout=5)
+    if result.returncode == 0:
+        print(result.stdout.strip())
+    else:
+        print('unknown')
+except:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+    fi
 fi
 
 if [ "$CURRENT_COMMIT" = "unknown" ] || [ -z "$CURRENT_COMMIT" ]; then
@@ -365,19 +405,54 @@ print_section "PROCESS MANAGEMENT"
 
 # Stop ApplerGUI if it's running
 progress "Checking for running ApplerGUI processes..."
-if pgrep -f "applergui" > /dev/null; then
-    print_warning "ApplerGUI is currently running"
+
+# Get current script's parent PID if running from applergui --update
+PARENT_PID="${APPLERGUI_PARENT_PID:-}"
+
+# Find running applergui processes, excluding this script's parent
+applergui_pids=()
+while IFS= read -r pid; do
+    # Skip the parent PID if we're running from applergui --update
+    if [[ -n "$PARENT_PID" && "$pid" == "$PARENT_PID" ]]; then
+        continue
+    fi
+    # Skip the current script process
+    if [[ "$pid" == "$$" ]]; then
+        continue
+    fi
+    applergui_pids+=("$pid")
+done < <(pgrep -f "applergui" 2>/dev/null || true)
+
+if [ ${#applergui_pids[@]} -gt 0 ]; then
+    print_warning "ApplerGUI is currently running (${#applergui_pids[@]} process(es))"
     echo ""
     print_status "The application needs to be stopped for a safe update."
     if ask_yn "Stop ApplerGUI to proceed with update?" "y"; then
         progress "Stopping ApplerGUI processes..."
-        pkill -f "applergui" &> /dev/null || true
+        for pid in "${applergui_pids[@]}"; do
+            kill "$pid" &> /dev/null || true
+        done
         sleep 2
         
-        # Verify processes are stopped
-        if pgrep -f "applergui" > /dev/null; then
+        # Verify processes are stopped (re-check excluding parent)
+        remaining_pids=()
+        while IFS= read -r pid; do
+            # Skip the parent PID if we're running from applergui --update
+            if [[ -n "$PARENT_PID" && "$pid" == "$PARENT_PID" ]]; then
+                continue
+            fi
+            # Skip the current script process
+            if [[ "$pid" == "$$" ]]; then
+                continue
+            fi
+            remaining_pids+=("$pid")
+        done < <(pgrep -f "applergui" 2>/dev/null || true)
+        
+        if [ ${#remaining_pids[@]} -gt 0 ]; then
             print_warning "Some processes are still running, forcing termination..."
-            pkill -9 -f "applergui" &> /dev/null || true
+            for pid in "${remaining_pids[@]}"; do
+                kill -9 "$pid" &> /dev/null || true
+            done
             sleep 1
         fi
         
@@ -549,20 +624,21 @@ NEW_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version_
 NEW_COMMIT=$(python3 -c "
 try:
     import applergui
-    import os
-    package_dir = os.path.dirname(applergui.__file__)
-    git_dir = os.path.join(package_dir, '..', '.git')
-    if os.path.exists(git_dir):
+    commit = getattr(applergui, '__commit__', 'unknown')
+    if commit and commit != 'unknown':
+        print(commit)
+    else:
+        # Fallback to git method
+        import os
         import subprocess
+        package_dir = os.path.dirname(applergui.__file__)
         result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
-                              cwd=os.path.dirname(git_dir), 
-                              capture_output=True, text=True)
+                              cwd=package_dir, 
+                              capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             print(result.stdout.strip())
         else:
             print('unknown')
-    else:
-        print('unknown')
 except:
     print('unknown')
 " 2>/dev/null || echo "unknown")
