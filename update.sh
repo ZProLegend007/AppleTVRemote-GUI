@@ -380,9 +380,6 @@ case $INSTALL_METHOD in
         print_success "No running processes found"
     fi
 
-
-fi
-
 progress
 sleep 1
 end_progress
