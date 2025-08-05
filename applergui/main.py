@@ -9,6 +9,7 @@ import asyncio
 import signal
 import argparse
 import subprocess
+import tempfile
 from pathlib import Path
 
 # Suppress Qt verbose logging for clean debug output
@@ -35,6 +36,7 @@ class ApplerGUIApp:
         self.config_manager = None
         self.device_controller = None
         self.pairing_manager = None
+        self.event_loop = None
     
     def setup_application(self):
         """Set up the Qt application."""
@@ -53,6 +55,9 @@ class ApplerGUIApp:
         self.app = QApplication(sys.argv)
         self.app.setApplicationDisplayName("ApplerGUI")
         
+        # Connect cleanup to app quit signal
+        self.app.aboutToQuit.connect(self.sync_cleanup)
+        
         # Set application icon if available
         icon_path = project_root / "resources" / "icons" / "app_icon.png"
         if icon_path.exists():
@@ -70,7 +75,7 @@ class ApplerGUIApp:
         from .backend.pairing_manager import PairingManager
         
         self.config_manager = ConfigManager()
-        self.device_controller = DeviceController(self.config_manager)
+        self.device_controller = DeviceController(self.config_manager, self.event_loop)
         self.pairing_manager = PairingManager(self.config_manager)
     
     def setup_ui(self):
@@ -107,12 +112,19 @@ class ApplerGUIApp:
         """Set up signal handlers for graceful shutdown."""
         def signal_handler(sig, frame):
             print("\nShutting down gracefully...")
-            # Schedule cleanup to run in the event loop
-            asyncio.create_task(self.cleanup())
-            sys.exit(0)
+            # Use Qt's quit mechanism for proper shutdown
+            if self.app:
+                self.app.quit()
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+    
+    def sync_cleanup(self):
+        """Synchronous cleanup for Qt signals."""
+        if self.main_window:
+            # Save window geometry
+            geometry = self.main_window.saveGeometry()
+            self.config_manager.set('window_geometry', geometry.data().hex())
     
     async def cleanup(self):
         """Clean up resources before exit."""
@@ -133,18 +145,22 @@ class ApplerGUIApp:
     async def run(self):
         """Run the application initialization."""
         try:
-            # Auto-discover devices on startup if enabled
-            if self.config_manager.get('auto_discover', True):
-                await self.device_controller.discover_devices(
-                    timeout=self.config_manager.get('discovery_timeout', 10)
-                )
+            # Skip auto-discovery on startup to avoid event loop conflicts
+            # Manual discovery via UI uses a separate thread mechanism and works reliably
+            print("🚀 ApplerGUI started successfully")
+            print("💡 Use the Discovery tab to find and connect to Apple TV devices")
             
-            # Try to reconnect to last used device
+            # Try to reconnect to last used device if available
             last_device = self.config_manager.get('last_device')
             if last_device:
                 known_devices = self.config_manager.get_known_devices()
                 if last_device in known_devices:
-                    await self.device_controller.connect_device(last_device)
+                    print(f"🔄 Attempting to reconnect to last device: {last_device}")
+                    try:
+                        await self.device_controller.connect_device(last_device)
+                        print(f"✅ Reconnected to {last_device}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to reconnect to last device: {e}")
             
             print("✅ ApplerGUI initialization complete - app will run until closed by user")
         
@@ -158,13 +174,22 @@ class ApplerGUIApp:
 def handle_update():
     """Handle the --update command."""
     print("🔄 Starting ApplerGUI update...")
+    temp_script = None
     try:
         # Try to download and run the update script
         update_url = "https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh"
         result = subprocess.run(['curl', '-fsSL', update_url], capture_output=True, text=True)
         if result.returncode == 0:
-            # Run the update script
-            result = subprocess.run(['bash'], input=result.stdout, text=True)
+            # Write the update script to a temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+                f.write(result.stdout)
+                temp_script = f.name
+            
+            # Make the script executable
+            os.chmod(temp_script, 0o755)
+            
+            # Run the update script directly (preserves signal handling)
+            result = subprocess.run(['bash', temp_script])
             if result.returncode == 0:
                 print("✅ Update completed successfully!")
             else:
@@ -177,6 +202,13 @@ def handle_update():
     except Exception as e:
         print(f"❌ Update failed: {e}")
         sys.exit(1)
+    finally:
+        # Clean up temporary file
+        if temp_script and os.path.exists(temp_script):
+            try:
+                os.unlink(temp_script)
+            except Exception:
+                pass  # Ignore cleanup errors
 
 def handle_version():
     """Handle the --version command."""
@@ -224,8 +256,14 @@ def launch_gui():
     
     # Run the application with async support
     with qasync.QEventLoop(app.app) as loop:
-        # Schedule initialization but don't wait for it to complete
-        loop.create_task(app.run())
+        # Store the loop instance in the app
+        app.event_loop = loop
+        # Use a QTimer to delay initialization until after the Qt event loop is running
+        from PyQt6.QtCore import QTimer
+        init_timer = QTimer()
+        init_timer.timeout.connect(lambda: loop.create_task(app.run()))
+        init_timer.setSingleShot(True)
+        init_timer.start(500)  # Start after 500ms for more stable initialization
         # Use exec() instead of run_forever() - this is the proper Qt way
         app.app.exec()
 
