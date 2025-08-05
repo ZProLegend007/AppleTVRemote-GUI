@@ -1,56 +1,74 @@
 #!/bin/bash
-# ApplerGUI Updater - Simple and robust update script
+# ApplerGUI Professional Updater
 # Usage: curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/update.sh | bash
 
 set -e  # Exit on any error
 
-# Colors for output
+# Clear screen for clean start
+clear
+
+# Enhanced ASCII art and professional header matching installer
+echo ""
+echo "██████╗ ██████╗ ██████╗ ██╗     ███████╗██████╗  ██████╗ ██╗   ██╗██╗"
+echo "██╔══██╗██╔══██╗██╔══██╗██║     ██╔════╝██╔══██╗██╔════╝ ██║   ██║██║"
+echo "███████║██████╔╝██████╔╝██║     █████╗  ██████╔╝██║  ███╗██║   ██║██║"
+echo "██╔══██║██╔═══╝ ██╔═══╝ ██║     ██╔══╝  ██╔══██╗██║   ██║██║   ██║██║"
+echo "██║  ██║██║     ██║     ███████╗███████╗██║  ██║╚██████╔╝╚██████╔╝██║"
+echo "╚═╝  ╚═╝╚═╝     ╚═╝     ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝"
+echo ""
+echo "               🔄 Professional Update System v1.0 🔄"
+echo ""
+echo "════════════════════════════════════════════════════════════════════════"
+echo "  Keeping your ApplerGUI installation up to date"
+echo "════════════════════════════════════════════════════════════════════════"
+echo ""
+
+# Enhanced colors and styling (matching installer)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Global flag for cleanup
-INTERRUPTED=0
+# Warning collection system
+WARNINGS=()
+add_warning() {
+    WARNINGS+=("$1")
+}
 
-# Enhanced signal handlers for proper Ctrl+C handling
-cleanup_and_exit() {
+# Enhanced error handling and cleanup
+cleanup() {
     local exit_code=$?
     echo ""
-    if [ $INTERRUPTED -eq 1 ]; then
-        echo -e "${YELLOW}[⚠ INTERRUPTED]${NC} Update cancelled by user (Ctrl+C)"
-        echo -e "${CYAN}[   INFO   ]${NC} You can run the updater again anytime to complete the update."
-        echo -e "${CYAN}[   INFO   ]${NC} Your current installation remains unchanged."
-        exit 130
-    elif [ $exit_code -ne 0 ]; then
-        echo -e "${RED}[✗  ERROR  ]${NC} Update failed with exit code $exit_code"
-        echo -e "${CYAN}[   INFO   ]${NC} Please check the error messages above and try again."
+    if [ $exit_code -ne 0 ] && [ $exit_code -ne 130 ]; then
+        print_error "Update failed with exit code $exit_code"
+        echo ""
+        print_status "🔧 Troubleshooting steps:"
+        echo "  1. Check your internet connection"
+        echo "  2. Ensure you have sufficient disk space"
+        echo "  3. Verify ApplerGUI is properly installed"
+        echo "  4. Check the update log above for specific errors"
+        echo ""
+        print_status "📞 Get help:"
+        echo -e "  - GitHub Issues: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
+        echo -e "  - Discussions: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
     fi
 }
 
-# Signal handlers for graceful interruption
-handle_interrupt() {
-    INTERRUPTED=1
-    echo ""
-    echo -e "${YELLOW}[⚠ INTERRUPTED]${NC} Received interrupt signal..."
-    echo -e "${CYAN}[   INFO   ]${NC} Cleaning up and exiting safely..."
-    exit 130
-}
+# Enhanced signal handlers for cleanup
+trap cleanup EXIT
+trap 'echo ""; print_warning "Update interrupted by user"; echo ""; print_status "Update cancelled. You can run the updater again anytime."; exit 130' INT TERM
 
-# Set up signal traps for proper Ctrl+C handling
-trap cleanup_and_exit EXIT
-trap handle_interrupt INT TERM
-
-# Print functions
-print_header() {
+# Professional status functions (matching installer)
+print_section() {
     echo ""
-    echo -e "${BOLD}${BLUE}════════════════════════════════════════════════════════════════════════${NC}"
-    echo -e " ${WHITE}$1${NC}"
-    echo -e "${BOLD}${BLUE}════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}${BLUE}═════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e " ${WHITE}${1}${NC}"
+    echo -e "${BOLD}${BLUE}═════════════════════════════════════════════════════════════════════════${NC}"
     echo ""
 }
 
@@ -59,51 +77,77 @@ print_status() {
 }
 
 print_success() {
+    end_progress
     echo -e "${GREEN}[✓ SUCCESS ]${NC} $1"
 }
 
 print_warning() {
+    end_progress
     echo -e "${YELLOW}[⚠ WARNING ]${NC} $1"
+    add_warning "$1"
 }
 
 print_error() {
+    end_progress
     echo -e "${RED}[✗  ERROR  ]${NC} $1"
 }
 
-# Function to get Git commit hash from repository
-get_git_commit() {
-    local repo_dir="$1"
-    if [ -d "$repo_dir/.git" ]; then
-        cd "$repo_dir"
-        git rev-parse HEAD 2>/dev/null
-    else
-        echo "no-git"
+# Globals for spinner control
+__progress_pid=
+
+progress() {
+    local message="$1"
+
+    # Start background spinner
+    {
+        local delay=0.05
+        local frames=(
+            "[▱▱▱▱▱▱▱▱▱▱]"
+            "[▰▱▱▱▱▱▱▱▱▱]"
+            "[▰▰▱▱▱▱▱▱▱▱]"
+            "[▰▰▰▱▱▱▱▱▱▱]"
+            "[▰▰▰▰▱▱▱▱▱▱]"
+            "[▰▰▰▰▰▱▱▱▱▱]"
+            "[▰▰▰▰▰▰▱▱▱▱]"
+            "[▰▰▰▰▰▰▰▱▱▱]"
+            "[▰▰▰▰▰▰▰▰▱▱]"
+            "[▰▰▰▰▰▰▰▰▰▱]"
+            "[▰▰▰▰▰▰▰▰▰▰]"
+            "[▱▰▰▰▰▰▰▰▰▰]"
+            "[▱▱▰▰▰▰▰▰▰▰]"
+            "[▱▱▱▰▰▰▰▰▰▰]"
+            "[▱▱▱▱▰▰▰▰▰▰]"
+            "[▱▱▱▱▱▰▰▰▰▰]"
+            "[▱▱▱▱▱▱▰▰▰▰]"
+            "[▱▱▱▱▱▱▱▰▰▰]"
+            "[▱▱▱▱▱▱▱▱▰▰]"
+            "[▱▱▱▱▱▱▱▱▱▰]"
+            "[▱▱▱▱▱▱▱▱▱▱]"
+            "[▱▱▱▱▱▱▱▱▱▱]"
+        )
+        local num_frames=${#frames[@]}
+        local i=0
+        tput civis
+        while true; do
+            printf "\r${WHITE}"${frames[i]}"${NC} %s  " "$message"
+            i=$(( (i + 1) % num_frames ))
+            sleep $delay
+        done
+    } &
+    __progress_pid=$!
+    disown $__progress_pid
+}
+
+end_progress() {
+    if [[ -n "$__progress_pid" ]]; then
+        kill "$__progress_pid" 2>/dev/null
+        wait "$__progress_pid" 2>/dev/null
+        __progress_pid=
+        tput cnorm
+        printf "\r%*s\r" "$(tput cols)" ""  # Clear line
     fi
 }
 
-
-# Function to get latest commit hash from GitHub
-get_latest_commit() {
-    curl -s "https://api.github.com/repos/ZProLegend007/ApplerGUI/commits/main" | \
-    grep '"sha":' | head -1 | sed 's/.*"sha": *"\([^"]*\)".*/\1/' 2>/dev/null || echo "unknown"
-}
-
-# Main update logic
-main() {
-    clear
-    print_header "APPLERGUI UPDATE SYSTEM"
-    
-    echo -e "🔄 ${BOLD}ApplerGUI Updater${NC}"
-    echo ""
-    
-    # Check if ApplerGUI is installed
-    print_status "Checking ApplerGUI installation..."
-    if ! python3 -c "import applergui" 2>/dev/null; then
-        print_error "ApplerGUI is not installed on this system!"
-        echo ""
-        print_status "Please install ApplerGUI first using:"
-        echo -e "  ${BOLD}curl -fsSL https://raw.githubusercontent.com/ZProLegend007/ApplerGUI/main/install.sh | bash${NC}"
-        
 # Professional input handling function (from installer)
 ask_yn() {
     local prompt="$1"
@@ -215,61 +259,36 @@ if pgrep -f "applergui" > /dev/null; then
     else
         print_error "Cannot update while ApplerGUI is running"
         print_status "Please close ApplerGUI manually and run the updater again."
-        main
         exit 1
     fi
-    print_success "ApplerGUI installation found"
-    
-    # Check if running as root
-    if [[ $EUID -eq 0 ]]; then
-        print_error "This updater should not be run as root for security reasons!"
-        print_status "Please run as your regular user"
-        exit 1
-    fi
-    print_success "Security check passed"
-    
-    # Detect installation paths
-    INSTALL_DIR="$HOME/.local/share/applergui"
-    VENV_PATH="$INSTALL_DIR/venv"
-    
-    print_status "Detecting installation method..."
-    if [ -d "$INSTALL_DIR" ] && [ -d "$VENV_PATH" ]; then
-        INSTALL_METHOD="standard"
-        print_success "Found standard installation at: $INSTALL_DIR"
-    elif [[ -n "$VIRTUAL_ENV" ]]; then
-        INSTALL_METHOD="venv"
-        VENV_PATH="$VIRTUAL_ENV"
-        print_success "Found virtual environment: $VIRTUAL_ENV"
-    else
-        INSTALL_METHOD="system"
-        print_success "Found system/user installation"
-    fi
-
-    
-    # Get current commit hash
-    progress "Checking for updates..."
-    CURRENT_COMMIT="unknown"
-    if [ "$INSTALL_METHOD" = "standard" ] && [ -d "$INSTALL_DIR/.git" ]; then
-        CURRENT_COMMIT=$(get_git_commit "$INSTALL_DIR")
-    fi
-    
-    # Get latest commit hash from GitHub
-    LATEST_COMMIT=$(get_latest_commit)
-    
-    if [ "$LATEST_COMMIT" = "unknown" ]; then
-        print_warning "Could not fetch latest version from GitHub"
-        print_status "Proceeding with update anyway..."
-    elif [ "$CURRENT_COMMIT" = "$LATEST_COMMIT" ] && [ "$CURRENT_COMMIT" != "unknown" ]; then
-        print_success "Already up to date (commit: ${CURRENT_COMMIT:0:8})"
-        echo ""
-        print_status "No update needed. Your ApplerGUI is already at the latest version."
-        exit 0
-    else
-        if [ "$CURRENT_COMMIT" != "unknown" ]; then
-            print_success "Update available: ${CURRENT_COMMIT:0:8} -> ${LATEST_COMMIT:0:8}"
-
 else
-    end_progress
+    print_success "No running ApplerGUI processes found"
+fi
+
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# BACKUP SYSTEM
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "BACKUP AND SAFETY"
+
+# Backup current configuration
+CONFIG_DIR="$HOME/.config/applergui"
+BACKUP_DIR="$HOME/.config/applergui.backup.$(date +%Y%m%d_%H%M%S)"
+
+if [ -d "$CONFIG_DIR" ]; then
+    progress "Creating configuration backup..."
+    if cp -r "$CONFIG_DIR" "$BACKUP_DIR"; then
+        print_success "Configuration backed up to: ${BOLD}$BACKUP_DIR${NC}"
+    else
+        print_warning "Failed to create configuration backup"
+        print_status "Continuing without backup..."
+    fi
+else
     print_status "No existing configuration found - no backup needed"
 fi
 
@@ -358,27 +377,62 @@ case $INSTALL_METHOD in
         progress "Updating ApplerGUI to the latest version..."
         if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git &> /dev/null; then
             print_success "Update completed successfully!"
-        main
         else
-            print_status "Update available (current version unknown)"
+            print_error "Update failed!"
+            if [ -d "$BACKUP_DIR" ]; then
+                print_status "Configuration backup is available at: ${BOLD}$BACKUP_DIR${NC}"
+            fi
+            exit 1
         fi
-    
-    # Stop ApplerGUI if running
-    print_status "Checking for running ApplerGUI processes..."
-    if pgrep -f "applergui" > /dev/null; then
-        print_warning "ApplerGUI is currently running"
-        print_status "Stopping ApplerGUI for safe update..."
-        pkill -f "applergui" 2>/dev/null || true
-        sleep 2
-        if pgrep -f "applergui" > /dev/null; then
-            print_warning "Force stopping remaining processes..."
-            pkill -9 -f "applergui" 2>/dev/null || true
-            sleep 1
+        ;;
+    "system")
+        print_warning "System installation detected - updating to user installation for safety"
+        print_status "This will create a user installation alongside the system installation"
+        progress "Updating ApplerGUI to the latest version..."
+        if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null; then
+            print_success "Update completed successfully!"
+            print_warning "Note: User installation will take precedence over system installation"
+        else
+            print_error "Update failed!"
+            exit 1
         fi
-        print_success "ApplerGUI processes stopped"
+        ;;
+esac
+
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# UPDATE VERIFICATION
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "UPDATE VERIFICATION"
+
+# Get new version
+progress "Verifying update..."
+NEW_VERSION=$(python3 -c "import applergui; print(getattr(applergui, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
+
+if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
+    print_success "Successfully updated from ${BOLD}$CURRENT_VERSION${NC} to ${BOLD}$NEW_VERSION${NC}"
+elif [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+    print_success "Already at latest version: ${BOLD}$NEW_VERSION${NC}"
+else
+    print_warning "Version verification inconclusive"
+fi
+
+# Clean up backup if update was successful
+if [ -d "$BACKUP_DIR" ]; then
+    echo ""
+    print_status "Update successful! The configuration backup can be safely removed."
+    if ask_yn "Remove backup directory?" "y"; then
+        rm -rf "$BACKUP_DIR"
+        print_success "Backup directory removed"
     else
-        print_success "No running processes found"
+        print_status "Backup kept at: ${BOLD}$BACKUP_DIR${NC}"
     fi
+fi
 
 progress
 sleep 1
@@ -397,57 +451,91 @@ progress "Verifying executable availability..."
 if python -c "import applergui" &>/dev/null; then
     print_success "✅ ApplerGUI module imported successfully"
     print_success "✅ Update complete!"
-    main
     
-    # Activate virtual environment if needed
-    if [[ "$INSTALL_METHOD" == "standard" ]]; then
-        print_status "Activating virtual environment..."
-        source "$VENV_PATH/bin/activate"
-        print_success "Virtual environment activated"
-    fi
-    
-    # Perform update
-    print_status "Updating ApplerGUI..."
-    case $INSTALL_METHOD in
-        "standard"|"venv")
-            if pip install --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null 2>&1; then
-                print_success "Update completed successfully!"
-            else
-                print_error "Update failed!"
-                exit 1
-            fi
-            ;;
-        "system")
-            if pip3 install --user --upgrade git+https://github.com/ZProLegend007/ApplerGUI.git > /dev/null 2>&1; then
-                print_success "Update completed successfully!"
-            else
-                print_error "Update failed!"
-                exit 1
-            fi
-            ;;
-    esac
-    
-    # Verify update
-    print_status "Verifying update..."
-    if python3 -c "import applergui; print('Update verified')" 2>/dev/null; then
-        print_success "Update verification passed"
+    if [ -f "$CLI_SCRIPT" ]; then
+        print_status "CLI command available: ${BOLD}applergui${NC}"
     else
-        print_warning "Update completed but verification failed"
+        print_status "Run with: ${BOLD}python -m applergui${NC}"
     fi
-    
-    # Success message
-    echo ""
-    print_header "UPDATE COMPLETE"
-    echo -e "🎉 ${BOLD}${GREEN}ApplerGUI has been updated successfully!${NC} 🎉"
-    echo ""
-    print_status "You can now launch ApplerGUI with the latest features:"
-    if command -v applergui &> /dev/null; then
-        echo -e "  ${CYAN}applergui${NC}"
-    else
-        echo -e "  ${CYAN}python3 -m applergui${NC}"
-    fi
-    echo ""
-    print_success "Update completed! Enjoy the latest features! 🍎"
+else
+    print_warning "Update completed but module verification failed."
+    print_status "Try running: ${BOLD}python -m applergui${NC}"
+fi
 
-# Run main function
-main "$@"
+progress
+sleep 1
+end_progress
+
+# ═══════════════════════════════════════════════════════════════════════
+# UPDATE COMPLETE
+# ═══════════════════════════════════════════════════════════════════════
+
+clear
+print_section "UPDATE COMPLETE"
+
+echo ""
+echo -e "🎉 ${BOLD}${GREEN}ApplerGUI has been updated successfully!${NC} 🎉"
+echo ""
+echo "════════════════════════════════════════════════════════════════════════"
+echo ""
+echo -e "📋 ${BOLD}What's Next:${NC}"
+echo ""
+echo -e "  1. ${BOLD}Launch ApplerGUI:${NC}"
+if [ -f "$CLI_SCRIPT" ]; then
+    echo -e "     ${CYAN}applergui${NC}"
+else
+    echo -e "     ${CYAN}python -m applergui${NC}"
+fi
+echo ""
+echo -e "  2. ${BOLD}Check for new features:${NC}"
+echo "     - Review the application interface for updates"
+echo "     - Check settings for new configuration options"
+echo "     - Test device connectivity and new features"
+echo ""
+echo -e "  3. ${BOLD}Report issues:${NC}"
+echo "     - If you encounter any problems after the update"
+echo "     - Visit our GitHub issues page for support"
+echo ""
+echo "════════════════════════════════════════════════════════════════════════"
+echo ""
+echo -e "📚 ${BOLD}Resources:${NC}"
+echo -e "   Documentation: ${BLUE}https://github.com/ZProLegend007/ApplerGUI${NC}"
+echo -e "   Report Issues:  ${BLUE}https://github.com/ZProLegend007/ApplerGUI/issues${NC}"
+echo -e "   Get Support:   ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+echo ""
+echo "════════════════════════════════════════════════════════════════════════"
+echo ""
+
+# Launch option
+if ask_yn "Would you like to launch ApplerGUI now?" "n"; then
+    print_status "Launching ApplerGUI..."
+    
+    if [ -f "$CLI_SCRIPT" ]; then
+        "$CLI_SCRIPT" &
+    else
+        python -m applergui &
+    fi
+    
+    print_success "ApplerGUI launched! Check your desktop for the application window."
+else
+    print_status "ApplerGUI is ready to use. Launch it whenever you're ready!"
+fi
+
+echo ""
+print_success "Thank you for keeping ApplerGUI up to date! Enjoy the latest features! 🍎"
+
+# Display warning summary if any warnings were collected
+if [ ${#WARNINGS[@]} -gt 0 ]; then
+    echo ""
+    print_section "⚠️  UPDATE WARNINGS SUMMARY"
+    echo "The following ${#WARNINGS[@]} warning(s) were encountered during update:"
+    echo ""
+    for i in "${!WARNINGS[@]}"; do
+        echo "  $((i+1)). ${WARNINGS[i]}"
+    done
+    echo ""
+    print_status "These warnings don't prevent ApplerGUI from working, but you may want to address them."
+    print_status "For help with any issues, visit: ${BLUE}https://github.com/ZProLegend007/ApplerGUI/discussions${NC}"
+fi
+
+echo ""
