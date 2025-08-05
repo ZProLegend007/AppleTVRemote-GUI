@@ -164,7 +164,7 @@ ask_yn() {
         fi
         
         # Read from /dev/tty for proper input handling even in piped scenarios
-#        read -r response < /dev/tty
+        read -r response < /dev/tty
         
         case "$response" in
             [Yy]|[Yy][Ee][Ss])
