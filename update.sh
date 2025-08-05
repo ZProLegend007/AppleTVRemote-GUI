@@ -362,7 +362,6 @@ case $INSTALL_METHOD in
         else
             print_status "Update available (current version unknown)"
         fi
-    fi
     
     # Stop ApplerGUI if running
     print_status "Checking for running ApplerGUI processes..."
