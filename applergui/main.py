@@ -312,8 +312,9 @@ def launch_gui():
             init_timer.setSingleShot(True)
             init_timer.start(250)  # Increased delay for stability
             
-            # Run the application
-            loop.run_until_complete(app.app.exec())
+            # Run the application - use exec() directly, not run_until_complete
+            exit_code = app.app.exec()
+            sys.exit(exit_code)
     except Exception as e:
         print(f"❌ Application error: {e}")
         sys.exit(1)
