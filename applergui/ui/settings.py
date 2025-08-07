@@ -317,7 +317,7 @@ class AboutWidget(QWidget):
         layout.addWidget(icon_label)
         
         # App name
-        name_label = QLabel("AppleTVRemote-GUI")
+        name_label = QLabel("ApplerGUI")
         name_font = QFont()
         name_font.setBold(True)
         name_font.setPointSize(24)
@@ -325,11 +325,36 @@ class AboutWidget(QWidget):
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(name_label)
         
-        # Version
-        version_label = QLabel("Version 1.0.0")
-        version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version_label.setStyleSheet("color: #888888; font-size: 14px;")
-        layout.addWidget(version_label)
+        # Dynamic version and commit info
+        try:
+            import applergui
+            version = getattr(applergui, '__version__', 'Unknown')
+            commit = getattr(applergui, '__commit__', 'unknown')
+            
+            # Version
+            version_label = QLabel(f"Version {version}")
+            version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            version_label.setStyleSheet("color: #888888; font-size: 14px;")
+            layout.addWidget(version_label)
+            
+            # Commit info
+            if commit != 'unknown' and len(commit) >= 8:
+                commit_label = QLabel(f"Commit: {commit[:8]}")
+                commit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                commit_label.setStyleSheet("color: #888888; font-size: 12px; font-family: monospace;")
+                layout.addWidget(commit_label)
+            else:
+                commit_label = QLabel("Commit: Unknown")
+                commit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                commit_label.setStyleSheet("color: #CC6666; font-size: 12px; font-style: italic;")
+                layout.addWidget(commit_label)
+                
+        except Exception as e:
+            # Fallback version info
+            version_label = QLabel("Version: Unable to determine")
+            version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            version_label.setStyleSheet("color: #CC6666; font-size: 14px; font-style: italic;")
+            layout.addWidget(version_label)
         
         # Description
         description_label = QLabel(
@@ -370,7 +395,7 @@ class AboutWidget(QWidget):
         author_info = """
         Author: Zac
         License: MIT License
-        Repository: github.com/ZProLegend007/AppleTVRemote-GUI
+        Repository: github.com/ZProLegend007/ApplerGUI
         """
         
         author_label = QLabel(author_info)

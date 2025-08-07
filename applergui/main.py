@@ -250,8 +250,16 @@ def handle_update():
 
 def handle_version():
     """Handle the --version command."""
-    from . import __version__
-    print(f"ApplerGUI version {__version__}")
+    try:
+        from . import __version__, __commit__
+        print(f"ApplerGUI version {__version__}")
+        if __commit__ and __commit__ != "unknown":
+            print(f"Commit: {__commit__[:8]}...")
+        else:
+            print("Commit: Unable to determine")
+    except ImportError:
+        print("ApplerGUI version: Unable to determine")
+        print("Commit: Unable to determine")
 
 def handle_help():
     """Handle the --help command."""
@@ -267,8 +275,36 @@ ApplerGUI is a modern Linux GUI application for controlling Apple TV and HomePod
 Visit https://github.com/ZProLegend007/ApplerGUI for more information.
 """)
 
+def _setup_qt_platform():
+    """Set up Qt platform with fallback options for robust initialization."""
+    # Set Qt platform if not already set
+    if 'QT_QPA_PLATFORM' not in os.environ:
+        # Detect if we're in a headless or CI environment
+        is_headless = (
+            not os.environ.get('DISPLAY') or
+            os.environ.get('CI') or
+            os.environ.get('GITHUB_ACTIONS') or
+            os.environ.get('RUNNER_OS') or
+            not os.path.exists('/dev/dri') or  # No GPU access
+            'runner' in os.environ.get('USER', '')  # GitHub runner
+        )
+        
+        if is_headless:
+            # Headless environment - use minimal platform
+            os.environ['QT_QPA_PLATFORM'] = 'minimal'
+            print("✅ Set Qt platform to minimal (headless environment detected)")
+        else:
+            # Desktop environment - try xcb first
+            os.environ['QT_QPA_PLATFORM'] = 'xcb'
+            print("✅ Set Qt platform to xcb (desktop environment detected)")
+    else:
+        print(f"✅ Using preset Qt platform: {os.environ['QT_QPA_PLATFORM']}")
+
 def launch_gui():
     """Launch the GUI application."""
+    # Set up Qt platform FIRST before any Qt imports
+    _setup_qt_platform()
+    
     # Import GUI components only when needed
     try:
         from PyQt6.QtWidgets import QApplication
@@ -279,6 +315,21 @@ def launch_gui():
         print(f"❌ Failed to import GUI dependencies: {e}")
         print("💡 Please install PyQt6: pip install PyQt6")
         sys.exit(1)
+    except Exception as e:
+        print(f"❌ Qt platform initialization failed: {e}")
+        print("💡 Trying fallback platform...")
+        # Try minimal platform as fallback
+        os.environ['QT_QPA_PLATFORM'] = 'minimal'
+        try:
+            from PyQt6.QtWidgets import QApplication
+            from PyQt6.QtCore import QCoreApplication, QLoggingCategory, QTimer
+            from PyQt6.QtGui import QPixmap, QIcon
+            import qasync
+            print("✅ Fallback to minimal platform successful")
+        except Exception as e2:
+            print(f"❌ Fallback also failed: {e2}")
+            print("💡 Please check your Qt installation")
+            sys.exit(1)
     
     # SUPPRESS ALL Qt logging categories
     QLoggingCategory.setFilterRules("*=false")

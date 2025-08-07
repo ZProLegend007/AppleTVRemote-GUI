@@ -23,6 +23,16 @@ try:
             saved_commit = f.read().strip()
             if saved_commit and len(saved_commit) == 40:  # Valid Git commit hash length
                 __commit__ = saved_commit
+    
+    # Also try in the package directory for development installs
+    if __commit__ == "unknown":
+        package_commit_file = os.path.join(os.path.dirname(__file__), ".commit")
+        if os.path.exists(package_commit_file):
+            with open(package_commit_file, 'r') as f:
+                saved_commit = f.read().strip()
+                if saved_commit and len(saved_commit) == 40:
+                    __commit__ = saved_commit
+                    
 except Exception:
     pass
 
