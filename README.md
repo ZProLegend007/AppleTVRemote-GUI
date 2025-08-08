@@ -1,4 +1,5 @@
 # ApplerGUI
+Currently in developement and not yet release ready
 
 🍎 **Modern Linux GUI for Apple TV & HomePod Control**
 
